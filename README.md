@@ -1,36 +1,139 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Deploy Agent
 
-## Getting Started
+A production-ready deployment automation agent that deploys git repositories to Vercel (and other platforms) with full configuration support.
 
-First, run the development server:
+## Features
+
+- **One-click deployment** from GitHub, GitLab, or Bitbucket repositories
+- **Multi-platform support**: Vercel, Netlify, Cloudflare Pages, Railway
+- **Full configuration** via API or UI (100+ parameters)
+- **Environment variable encryption** (AES-256-GCM)
+- **Rate limiting** (Redis or in-memory)
+- **Retry with exponential backoff** for all external APIs
+- **GitHub Actions integration** for CI/CD
+- **Real-time deployment logs**
+- **Supabase backend automation** support
+
+## Quick Start
+
+### 1. Clone and install
+
+```bash
+cd deploy-agent
+npm install
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+# Edit .env with your tokens
+```
+
+Required tokens:
+- `VERCEL_TOKEN` - Your Vercel API token (https://vercel.com/account/tokens)
+- `GITHUB_TOKEN` - GitHub Personal Access Token (repo scope)
+
+### 3. Run locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 4. Deploy
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+curl -X POST http://localhost:3000/api/deploy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo_url": "https://github.com/vercel/next.js",
+    "project_name": "my-next-app"
+  }'
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## API Endpoints
 
-## Learn More
+| Method | Endpoint | Description |
+|--------|----------|------------|
+| POST | `/api/deploy` | Create deployment |
+| GET | `/api/deploy?deployment_id=xxx` | Get deployment status/logs |
+| GET | `/api/projects` | List projects |
+| GET | `/api/health` | Health check |
 
-To learn more about Next.js, take a look at the following resources:
+## Configuration
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+All parameters are optional. See [API Reference](#api-reference) for full list.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Example: Full-stack app with Supabase
 
-## Deploy on Vercel
+```bash
+curl -X POST http://localhost:3000/api/deploy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo_url": "https://github.com/my-org/my-app",
+    "project_name": "my-fullstack-app",
+    "target_platform": "vercel",
+    "create_supabase_project": true,
+    "supabase_region": "us-east-1",
+    "environment_variables": {
+      "NEXT_PUBLIC_API_URL": "https://api.example.com"
+    },
+    "setup_github_actions": true,
+    "notification_slack": "https://hooks.slack.com/services/xxx"
+  }'
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Example: Monorepo with custom build
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+curl -X POST http://localhost:3000/api/deploy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo_url": "https://github.com/my-org/monorepo",
+    "root_directory": "/apps/web",
+    "build_override": "turbo run build --filter=web",
+    "output_directory": "dist",
+    "custom_domain": "myapp.example.com",
+    "generate_terraform": true
+  }'
+```
+
+## Docker
+
+### Development
+
+```bash
+docker-compose up --build
+```
+
+### Production
+
+```bash
+docker-compose -f docker-compose.yml up -d --build
+```
+
+## Architecture
+
+- **Frontend**: Next.js (App Router) + TailwindCSS
+- **Backend**: Next.js API Routes + Node.js services
+- **Database**: PostgreSQL (via Drizzle ORM)
+- **Queue/Cache**: Redis (Upstash compatible)
+
+## Security
+
+- All sensitive data (API keys, passwords) encrypted with AES-256-GCM
+- Rate limiting (10 requests/minute by default)
+- Environment variables never logged
+- Webhook signature validation
+
+## Roadmap
+
+- [ ] OAuth for private repositories
+- [ ] Self-hosted Docker/K8s deployment
+- [ ] Vercel Edge Functions support
+- [ ] A/B testing with Vercel Flags
+- [ ] Dashboard with analytics
+
+## License
+
+MIT

@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploy Agent Frontend Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+        
+        .card {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .theme-switch {
+            transition: all 0.3s ease;
+        }
+        
+        .theme-switch:hover {
+            transform: rotate(12deg);
+        }
+        
+        @media (max-width: 640px) {
+            .mobile-hide {
+                display: none;
+            }
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #0f172a;
+                color: #f8fafc;
+            }
+            
+            .dark\:bg-slate-900 {
+                background-color: #0f172a;
+            }
+            
+            .dark\:border-slate-700 {
+                border-color: #334155;
+            }
+            
+            .dark\:text-slate-200 {
+                color: #e2e8f0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-200 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-12">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
+                            <span class="text-white font-bold text-lg">D</span>
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-bold">Deploy Agent</h1>
+                        <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            Online
+                        </span>
+                    </div>
+                    <p class="text-lg text-gray-600 dark:text-slate-400">
+                        Modern deployment automation platform
+                    </p>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <button class="theme-switch px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800">
+                        <span class="flex items-center gap-2">
+                            <span>🌙</span>
+                            <span class="mobile-hide">Dark Mode</span>
+                        </span>
+                    </button>
+                    <button class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+                        New Deployment
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="flex overflow-x-auto py-2 border-b border-gray-200 dark:border-slate-700 mb-8">
+                <div class="flex space-x-1">
+                    <a href="#" class="px-4 py-2 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium">
+                        Dashboard
+                    </a>
+                    <a href="#" class="px-4 py-2 rounded-md text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                        Projects
+                    </a>
+                    <a href="#" class="px-4 py-2 rounded-md text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                        Deployments
+                    </a>
+                    <a href="#" class="px-4 py-2 rounded-md text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                        Settings
+                    </a>
+                    <a href="#" class="px-4 py-2 rounded-md text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                        Documentation
+                    </a>
+                </div>
+            </nav>
+        </header>
+        
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column - Quick Deploy -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Quick Deploy Card -->
+                <div class="card bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 border border-blue-200 dark:border-slate-700 rounded-xl p-6">
+                    <h2 class="text-2xl font-bold mb-4">Quick Deploy</h2>
+                    <form class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                    Repository URL *
+                                </label>
+                                <input type="url" placeholder="https://github.com/username/repo" 
+                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                    Project Name
+                                </label>
+                                <input type="text" placeholder="my-awesome-project" 
+                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                    Platform
+                                </label>
+                                <select class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option>Vercel</option>
+                                    <option>Netlify</option>
+                                    <option>Cloudflare Pages</option>
+                                    <option>Railway</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                    Branch
+                                </label>
+                                <input type="text" placeholder="main" 
+                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                    Build Command
+                                </label>
+                                <input type="text" placeholder="npm run build" 
+                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-gray-500 dark:text-slate-400">
+                                Press Ctrl+S to save as template
+                            </div>
+                            <button type="submit" 
+                                class="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg">
+                                Deploy Now 🚀
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Recent Projects -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-2xl font-bold">Recent Projects</h2>
+                        <a href="#" class="text-blue-600 dark:text-blue-400 hover:underline">View all →</a>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Project Card 1 -->
+                        <div class="card bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5">
+                            <div class="flex items-start justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold text-lg mb-1">Next.js Website</h3>
+                                    <p class="text-sm text-gray-500 dark:text-slate-400">github.com/user/nextjs-website</p>
+                                </div>
+                                <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                    Active
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                                    <span class="text-gray-600 dark:text-slate-400">12 deployments</span>
+                                </div>
+                                <span class="px-2 py-1 rounded bg-black text-white text-xs">
+                                    Vercel
+                                </span>
+                            </div>
+                            <div class="mt-4 text-xs text-gray-500 dark:text-slate-500">
+                                Last deployed: 2 hours ago
+                            </div>
+                        </div>
+                        
+                        <!-- Project Card 2 -->
+                        <div class="card bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5">
+                            <div class="flex items-start justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold text-lg mb-1">React Dashboard</h3>
+                                    <p class="text-sm text-gray-500 dark:text-slate-400">github.com/user/react-dashboard</p>
+                                </div>
+                                <span class="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                    Pending
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                                    <span class="text-gray-600 dark:text-slate-400">5 deployments</span>
+                                </div>
+                                <span class="px-2 py-1 rounded bg-green-600 text-white text-xs">
+                                    Netlify
+                                </span>
+                            </div>
+                            <div class="mt-4 text-xs text-gray-500 dark:text-slate-500">
+                                Deployment in progress...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column - Stats & Info -->
+            <div class="space-y-8">
+                <!-- Stats -->
+                <div class="space-y-4">
+                    <h2 class="text-2xl font-bold">Statistics</h2>
+                    
+                    <div class="card bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-center p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                                <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">42</div>
+                                <div class="text-sm text-gray-600 dark:text-slate-400">Total Deployments</div>
+                            </div>
+                            <div class="text-center p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
+                                <div class="text-3xl font-bold text-green-600 dark:text-green-400">98%</div>
+                                <div class="text-sm text-gray-600 dark:text-slate-400">Success Rate</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div>
+                    <h2 class="text-2xl font-bold mb-4">Quick Actions</h2>
+                    <div class="space-y-3">
+                        <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-left">
+                            <span class="text-lg">📄</span>
+                            <span>View Deployment Logs</span>
+                        </button>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-left">
+                            <span class="text-lg">⚙️</span>
+                            <span>Environment Variables</span>
+                        </button>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-left">
+                            <span class="text-lg">🔗</span>
+                            <span>Connect Repository</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- System Status -->
+                <div class="card bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5">
+                    <h3 class="font-bold mb-4">System Status</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span>API Service</span>
+                            <span class="px-2 py-1 rounded text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                Operational
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Database</span>
+                            <span class="px-2 py-1 rounded text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                Connected
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Redis Cache</span>
+                            <span class="px-2 py-1 rounded text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                Active
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>GitHub Integration</span>
+                            <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                Ready
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="mt-12 pt-8 border-t border-gray-200 dark:border-slate-700">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="text-gray-600 dark:text-slate-400 text-sm">
+                    <p>Deploy Agent v0.1.0 • Built with ❤️ using Next.js 16 & React 19</p>
+                </div>
+                <div class="flex items-center gap-6 text-sm text-gray-500 dark:text-slate-500">
+                    <a href="#" class="hover:text-blue-600 dark:hover:text-blue-400">Documentation</a>
+                    <a href="#" class="hover:text-blue-600 dark:hover:text-blue-400">API Reference</a>
+                    <a href="#" class="hover:text-blue-600 dark:hover:text-blue-400">GitHub</a>
+                    <a href="#" class="hover:text-blue-600 dark:hover:text-blue-400">Support</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <script>
+        // Simple theme toggle
+        document.querySelector('.theme-switch').addEventListener('click', function() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+            if (isDark) {
+                html.classList.remove('dark');
+                this.innerHTML = '<span class="flex items-center gap-2"><span>🌙</span><span class="mobile-hide">Dark Mode</span></span>';
+            } else {
+                html.classList.add('dark');
+                this.innerHTML = '<span class="flex items-center gap-2"><span>☀️</span><span class="mobile-hide">Light Mode</span></span>';
+            }
+        });
+        
+        // Form submission simulation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = 'Deploying...';
+            btn.disabled = true;
+            btn.classList.add('opacity-70');
+            
+            setTimeout(() => {
+                alert('Deployment started! Check the Projects section for status.');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-70');
+            }, 1500);
+        });
+        
+        // Check system status
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/health', { 
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('System status:', data);
+                    
+                    // Update status indicators if needed
+                    const apiIndicator = document.querySelector('.system-status-api');
+                    if (apiIndicator) {
+                        apiIndicator.textContent = data.status || 'Operational';
+                        apiIndicator.className = 'px-2 py-1 rounded text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+                    }
+                }
+            } catch (error) {
+                console.log('Health check failed:', error);
+            }
+        }
+        
+        // Initial status check
+        // checkSystemStatus();
+    </script>
+</body>
+</html>

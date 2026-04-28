@@ -1,0 +1,183 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createDeployService } from '@/lib/deploy';
+import { parseDeployParams } from '@/lib/validation';
+import { getRateLimiter, initRateLimiter } from '@/lib/rate-limiter';
+import { authenticate, getUserTokens } from '@/lib/auth';
+import { createLogger, generateRequestId } from '@/lib/logger';
+
+// Initialize rate limiter
+initRateLimiter(process.env.REDIS_URL);
+
+export async function POST(request: NextRequest) {
+  const requestId = generateRequestId();
+  const logger = createLogger(requestId);
+
+  try {
+    logger.info('Deploy request started');
+
+    // Authenticate user
+    const user = await authenticate(request);
+    if (!user) {
+      logger.warn('Authentication failed');
+      return NextResponse.json(
+        { error: 'Authentication required. Provide Bearer token in Authorization header.' },
+        { status: 401 }
+      );
+    }
+
+    logger.info('User authenticated', { userId: user.id });
+
+    // Rate limiting check
+    const rateLimiter = getRateLimiter();
+    if (rateLimiter) {
+      const clientIp = request.headers.get('x-forwarded-for') || 'anonymous';
+      const rateCheck = await rateLimiter.check(clientIp);
+      
+      if (!rateCheck.success) {
+        logger.warn('Rate limit exceeded', { clientIp, limit: rateCheck.limit });
+        return NextResponse.json(
+          { error: 'Rate limit exceeded' },
+          { status: 429 }
+        );
+      }
+    }
+
+    // Parse and validate body
+    const body = await request.json();
+    const parsed = parseDeployParams(body);
+
+    if (!parsed.success) {
+      logger.warn('Validation failed', { issues: parsed.error?.issues });
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
+
+    const params = parsed.data!;
+
+    // Get user's tokens (user can override via headers)
+    const userTokens = await getUserTokens(user.id, process.env.ENCRYPTION_KEY!);
+    const vercelToken = request.headers.get('x-vercel-token') || userTokens.vercelToken;
+    const githubToken = request.headers.get('x-github-token') || userTokens.githubToken;
+
+    if (!vercelToken) {
+      logger.warn('Vercel token missing');
+      return NextResponse.json(
+        { error: 'Vercel token required' },
+        { status: 401 }
+      );
+    }
+
+    logger.info('Starting deployment', { repoUrl: params.repo_url, platform: params.target_platform });
+
+    // Create deploy service
+    const deployService = createDeployService({
+      vercelToken,
+      githubToken: githubToken || undefined,
+      encryptionKey: process.env.ENCRYPTION_KEY!,
+      teamId: request.headers.get('x-vercel-team-id') || undefined,
+    });
+
+    // Execute deployment
+    const result = await deployService.deploy(params);
+
+    // If wait_for_completion is true, poll for status
+    if (params.wait_for_completion && result.deploymentId) {
+      const pollResult = await deployService.pollDeploymentStatus(result.deploymentId);
+      
+      return NextResponse.json({
+        deployment_id: result.deploymentId,
+        status: pollResult.status,
+        url: pollResult.url,
+        logs_url: result.logsUrl,
+        message: pollResult.status === 'ready' ? 'Deployment successful' : pollResult.error,
+      });
+    }
+
+    return NextResponse.json({
+      deployment_id: result.deploymentId,
+      status: result.status,
+      url: result.url,
+      logs_url: result.logsUrl,
+      message: result.success ? 'Deployment started' : result.error,
+    });
+
+  } catch (error) {
+    logger.error('Deploy error', { error: error instanceof Error ? error.message : 'Unknown error' });
+    
+    return NextResponse.json(
+      { error: 'Deployment failed' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const requestId = generateRequestId();
+  const logger = createLogger(requestId);
+
+  try {
+    logger.info('Get deployment status request');
+
+    // Authenticate user
+    const user = await authenticate(request);
+    if (!user) {
+      logger.warn('Authentication failed');
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    logger.info('User authenticated', { userId: user.id });
+
+    // Return deployment status / logs
+    const deploymentId = request.nextUrl.searchParams.get('deployment_id');
+
+    if (!deploymentId) {
+      return NextResponse.json(
+        { error: 'deployment_id required' },
+        { status: 400 }
+      );
+    }
+
+    const userTokens = await getUserTokens(user.id, process.env.ENCRYPTION_KEY!);
+    const vercelToken = request.headers.get('x-vercel-token') || userTokens.vercelToken;
+
+    if (!vercelToken) {
+      logger.warn('Vercel token missing');
+      return NextResponse.json(
+        { error: 'Vercel token required' },
+        { status: 401 }
+      );
+    }
+
+    const deployService = createDeployService({
+      vercelToken,
+      encryptionKey: process.env.ENCRYPTION_KEY!,
+      teamId: request.headers.get('x-vercel-team-id') || undefined,
+    });
+
+    try {
+      const logs = await deployService.getDeploymentLogs(deploymentId);
+
+      return NextResponse.json({
+        deployment_id: deploymentId,
+        logs,
+      });
+    } catch (error) {
+      logger.error('Failed to get deployment logs', { error });
+      return NextResponse.json(
+        { error: 'Failed to get deployment logs' },
+        { status: 500 }
+      );
+    }
+  } catch (error) {
+    logger.error('Request error', { error });
+    return NextResponse.json(
+      { error: 'Request failed' },
+      { status: 500 }
+    );
+  }
+}
