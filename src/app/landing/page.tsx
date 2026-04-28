@@ -1,57 +1,9 @@
-'use client';
+export const metadata = {
+  title: 'Deploy Agent - Ship Code Faster',
+  description: 'One-click deployment from git repositories to Vercel, Netlify, and more. Built for modern teams.',
+};
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-export default function Home() {
-  const router = useRouter();
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        setIsAuthenticated(false);
-        setCheckingAuth(false);
-        return;
-      }
-
-      const res = await fetch('/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        setIsAuthenticated(true);
-        router.push('/dashboard');
-        return;
-      }
-
-      setIsAuthenticated(false);
-    } catch {
-      setIsAuthenticated(false);
-    } finally {
-      setCheckingAuth(false);
-    }
-  };
-
-  if (checkingAuth) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-600 dark:text-zinc-400">Loading...</div>
-      </div>
-    );
-  }
-
-  if (isAuthenticated) {
-    return null; // Will redirect to dashboard
-  }
-
-  // Landing page for non-authenticated users
+export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       {/* Hero Section */}
@@ -68,7 +20,7 @@ export default function Home() {
             </p>
             <div className="flex gap-4 justify-center">
               <a
-                href="/api/auth/register"
+                href="/"
                 className="px-8 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-lg"
               >
                 Start Deploying
@@ -229,7 +181,7 @@ export default function Home() {
             Join developers who trust Deploy Agent for their deployment needs.
           </p>
           <a
-            href="/api/auth/register"
+            href="/"
             className="inline-block px-8 py-3 bg-white text-blue-600 font-medium rounded-lg hover:bg-blue-50 transition-colors text-lg"
           >
             Get Started for Free

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { projects, type Project } from '@/db/schema';
-import { eq, like, desc } from 'drizzle-orm';
+import { projects, deployments } from '@/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { authenticate } from '@/lib/auth';
 import { createLogger, generateRequestId } from '@/lib/logger';
 
@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
   try {
     logger.info('List projects request');
 
-    // Authenticate user
     const user = await authenticate(request);
     if (!user) {
       logger.warn('Authentication failed');
@@ -23,49 +22,54 @@ export async function GET(request: NextRequest) {
     }
 
     logger.info('User authenticated', { userId: user.id });
+
     const page = parseInt(request.nextUrl.searchParams.get('page') || '1');
     const limit = Math.min(parseInt(request.nextUrl.searchParams.get('limit') || '10'), 100);
     const platform = request.nextUrl.searchParams.get('platform');
 
-    const pageSize = limit;
-    const offset = (page - 1) * pageSize;
-
-    // Build query
-    let query = db.select().from(projects) as any;
-
-    if (platform) {
-      query = query.where(eq(projects.platform, platform as any));
-    }
-
-    // Get total count (simplified - in production you'd want a separate count query)
-    const allProjects = await (query as any);
-    const filteredProjects = platform
-      ? allProjects.filter((p: any) => p.platform === platform)
-      : allProjects;
-
-    // Sort by created date (newest first)
-    filteredProjects.sort((a: any, b: any) => {
-      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bDate - aDate;
+    // Get projects with relations
+    const userProjects = await db.query.projects.findMany({
+      where: eq(projects.userId, user.id),
+      with: {
+        deployments: {
+          limit: 1,
+          orderBy: [desc(deployments.createdAt)],
+        },
+      },
+      orderBy: [desc(projects.createdAt)],
     });
 
+    // Filter by platform if specified
+    let filtered = platform
+      ? userProjects.filter(p => p.platform === platform)
+      : userProjects;
+
     // Paginate
-    const paginated = filteredProjects.slice(offset, offset + pageSize);
+    const total = filtered.length;
+    const offset = (page - 1) * limit;
+    const paginated = filtered.slice(offset, offset + limit);
 
     return NextResponse.json({
-      projects: paginated.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        repo_url: p.repoUrl,
-        platform: p.platform,
-        status: 'pending', // TODO: join with deployments for actual status
-        created_at: p.createdAt,
-      })),
-      total: filteredProjects.length,
+      projects: paginated.map(p => {
+        const latestDeploy = p.deployments?.[0];
+        return {
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          repo_url: p.repoUrl,
+          platform: p.platform,
+          environment: p.environment,
+          status: latestDeploy?.status || null,
+          url: latestDeploy?.url || null,
+          created_at: p.createdAt,
+          updated_at: p.updatedAt,
+        };
+      }),
+      total,
       page,
       limit,
     });
+
   } catch (error) {
     console.error('Projects list error:', error);
     return NextResponse.json(
@@ -82,7 +86,6 @@ export async function POST(request: NextRequest) {
   try {
     logger.info('Create project request');
 
-    // Authenticate user
     const user = await authenticate(request);
     if (!user) {
       logger.warn('Authentication failed');
@@ -136,7 +139,6 @@ export async function DELETE(request: NextRequest) {
   try {
     logger.info('Delete project request');
 
-    // Authenticate user
     const user = await authenticate(request);
     if (!user) {
       logger.warn('Authentication failed');

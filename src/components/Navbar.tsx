@@ -1,107 +1,191 @@
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Navbar() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard' },
-    { name: 'Projects', href: '/projects' },
-    { name: 'Deployments', href: '/deployments' },
-    { name: 'Settings', href: '/settings' },
-  ];
+  useEffect(() => {
+    setIsClient(true);
+    const token = localStorage.getItem('accessToken');
+    setIsAuthenticated(!!token);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    setIsAuthenticated(false);
+    window.location.href = '/';
+  };
+
+  const isActive = (path: string) => {
+    if (path === '/') return pathname === '/';
+    return pathname.startsWith(path);
+  };
+
+  if (!isClient) return null;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-              <span className="font-semibold text-primary-foreground">D</span>
-            </div>
-            <span className="text-lg font-semibold">Deploy Agent</span>
+    <nav className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600">
+                <span className="font-semibold text-white">D</span>
+              </div>
+              <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                Deploy Agent
+              </span>
+            </Link>
           </div>
-          
-          <nav className="hidden md:flex items-center gap-6 ml-8">
-            {navigation.map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {item.name}
-              </a>
-            ))}
-          </nav>
-        </div>
 
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" className="hidden sm:flex">
-            Documentation
-          </Button>
-          <Button size="sm">New Deployment</Button>
-          
-          <button
-            type="button"
-            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            aria-expanded={mobileMenuOpen}
-            aria-controls="mobile-navigation"
-            className="md:hidden p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              {mobileMenuOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              )}
-            </svg>
-          </button>
+          {isAuthenticated && (
+            <>
+              <div className="hidden sm:flex sm:items-center sm:space-x-8">
+                <Link
+                  href="/"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
+                    isActive('/') && pathname === '/'
+                      ? 'border-blue-500 text-zinc-900 dark:text-zinc-100'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Deploy
+                </Link>
+                <Link
+                  href="/projects"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
+                    isActive('/projects')
+                      ? 'border-blue-500 text-zinc-900 dark:text-zinc-100'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Projects
+                </Link>
+                <Link
+                  href="/settings/tokens"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
+                    isActive('/settings')
+                      ? 'border-blue-500 text-zinc-900 dark:text-zinc-100'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Settings
+                </Link>
+                <Link
+                  href="/instructions"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
+                    isActive('/instructions')
+                      ? 'border-blue-500 text-zinc-900 dark:text-zinc-100'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Docs
+                </Link>
+              </div>
+
+              <div className="hidden sm:flex sm:items-center">
+                <button
+                  onClick={handleLogout}
+                  className="ml-4 px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Mobile menu button */}
+          {isAuthenticated && (
+            <div className="sm:hidden flex items-center">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-zinc-400 hover:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                aria-expanded={isMobileMenuOpen}
+              >
+                <svg
+                  className="h-6 w-6"
+                  stroke="currentColor"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  {isMobileMenuOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-        {mobileMenuOpen && (
-        <div id="mobile-navigation" className="md:hidden border-t">
-          <div className="container mx-auto px-4 py-3 space-y-3">
-            {navigation.map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                className="block py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {item.name}
-              </a>
-            ))}
-            <div className="pt-3 space-y-2">
-              <Button variant="outline" size="sm" className="w-full">
-                Documentation
-              </Button>
-              <Button size="sm" className="w-full">
-                New Deployment
-              </Button>
-            </div>
+      {/* Mobile menu */}
+      {isMobileMenuOpen && isAuthenticated && (
+        <div className="sm:hidden border-t border-zinc-200 dark:border-zinc-700">
+          <div className="pt-2 pb-3 space-y-1 px-4">
+            <Link
+              href="/"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive('/') && pathname === '/'
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Deploy
+            </Link>
+            <Link
+              href="/projects"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive('/projects')
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Projects
+            </Link>
+            <Link
+              href="/settings/tokens"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive('/settings')
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Settings
+            </Link>
+            <Link
+              href="/instructions"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive('/instructions')
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Docs
+            </Link>
+            <button
+              onClick={() => {
+                handleLogout();
+                setIsMobileMenuOpen(false);
+              }}
+              className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+            >
+              Logout
+            </button>
           </div>
         </div>
       )}
-    </header>
+    </nav>
   );
 }
