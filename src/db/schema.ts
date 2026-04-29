@@ -239,6 +239,31 @@ export const usageRecordsRelations = relations(usageRecords, ({ one }) => ({
   team: one(teams, { fields: [usageRecords.teamId], references: [teams.id] }),
 }));
 
+// Subscription / billing table
+export const subscriptionPlanEnum = pgEnum('subscription_plan', ['free', 'pro', 'team', 'enterprise']);
+export const subscriptionStatusEnum = pgEnum('subscription_status', ['active', 'cancelled', 'past_due', 'trialing']);
+
+export const subscriptions = pgTable('subscriptions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().unique().references(() => users.id),
+  plan: subscriptionPlanEnum('plan').default('free').notNull(),
+  status: subscriptionStatusEnum('status').default('active').notNull(),
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
+  stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }),
+  currentPeriodStart: timestamp('current_period_start').defaultNow().notNull(),
+  currentPeriodEnd: timestamp('current_period_end').defaultNow().notNull(),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
+  canceledAt: timestamp('canceled_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(users, { fields: [subscriptions.userId], references: [users.id] }),
+}));
+
 // Type exports
+export type Subscription = typeof subscriptions.$inferSelect;
+export type NewSubscription = typeof subscriptions.$inferInsert;
 export type UsageRecord = typeof usageRecords.$inferSelect;
 export type NewUsageRecord = typeof usageRecords.$inferInsert;

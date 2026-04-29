@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const subscription = getSubscription(user.id);
+    const subscription = await getSubscription(user.id);
     const features = getPlanFeatures(subscription.plan);
     const limitsCheck = await checkAllLimits(user.id);
 
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       // 3. Handle webhook to update subscription
       
       // For now, simulate upgrade (demo mode)
-      const subscription = updateSubscription(user.id, plan);
+      const subscription = await updateSubscription(user.id, plan);
       
       logger.info('Subscription upgraded (demo)', { userId: user.id, plan });
       
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'cancel') {
-      const result = cancelSubscription(user.id);
+      const result = await cancelSubscription(user.id);
       
       if (!result) {
         return NextResponse.json({ error: 'No active subscription' }, { status: 404 });
