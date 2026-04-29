@@ -38,6 +38,7 @@ export const users = pgTable('users', {
   name: varchar('name', { length: 255 }),
   githubToken: text('github_token'),
   vercelToken: varchar('vercel_token', { length: 255 }),
+  netlifyToken: varchar('netlify_token', { length: 255 }),
   supabaseToken: text('supabase_token'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

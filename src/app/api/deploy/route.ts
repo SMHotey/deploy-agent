@@ -60,21 +60,34 @@ export async function POST(request: NextRequest) {
     // Get user's tokens (user can override via headers)
     const userTokens = await getUserTokens(user.id, process.env.ENCRYPTION_KEY!);
     const vercelToken = request.headers.get('x-vercel-token') || userTokens.vercelToken;
+    const netlifyToken = request.headers.get('x-netlify-token') || userTokens.netlifyToken || process.env.NETLIFY_TOKEN;
     const githubToken = request.headers.get('x-github-token') || userTokens.githubToken;
 
-    if (!vercelToken) {
-      logger.warn('Vercel token missing');
+    // Validate token based on target platform
+    if (params.target_platform === 'vercel' && !vercelToken) {
+      logger.warn('Vercel token missing for vercel deployment');
       return NextResponse.json(
-        { error: 'Vercel token required' },
+        { error: 'Vercel token required for Vercel deployments' },
+        { status: 401 }
+      );
+    }
+
+    if (params.target_platform === 'netlify' && !netlifyToken) {
+      logger.warn('Netlify token missing for netlify deployment');
+      return NextResponse.json(
+        { error: 'Netlify token required for Netlify deployments. Set NETLIFY_TOKEN or configure in settings.' },
         { status: 401 }
       );
     }
 
     logger.info('Starting deployment', { repoUrl: params.repo_url, platform: params.target_platform });
 
-    // Create deploy service
+    // Create deploy service — use platform-appropriate token
+    const platformToken = params.target_platform === 'netlify' ? (netlifyToken || vercelToken) : vercelToken;
+
     const deployService = createDeployService({
-      vercelToken,
+      vercelToken: platformToken || vercelToken || '',
+      netlifyToken: netlifyToken || undefined,
       githubToken: githubToken || undefined,
       encryptionKey: process.env.ENCRYPTION_KEY!,
       teamId: request.headers.get('x-vercel-team-id') || undefined,

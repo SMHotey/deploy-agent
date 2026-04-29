@@ -98,7 +98,7 @@ export async function getUserByEmail(email: string): Promise<(AuthUser & { passw
  */
 export async function storeUserTokens(
   userId: number,
-  tokens: { vercelToken?: string; githubToken?: string; supabaseToken?: string },
+  tokens: { vercelToken?: string; githubToken?: string; netlifyToken?: string; supabaseToken?: string },
   encryptionKey: string
 ): Promise<void> {
   const updates: Record<string, string> = {};
@@ -111,6 +111,11 @@ export async function storeUserTokens(
   if (tokens.githubToken) {
     const encrypted = encrypt(tokens.githubToken, encryptionKey);
     updates.githubToken = JSON.stringify(encrypted);
+  }
+
+  if (tokens.netlifyToken) {
+    const encrypted = encrypt(tokens.netlifyToken, encryptionKey);
+    updates.netlifyToken = JSON.stringify(encrypted);
   }
   
   if (tokens.supabaseToken) {
@@ -126,15 +131,15 @@ export async function storeUserTokens(
 /**
  * Get decrypted user tokens
  */
-export async function getUserTokens(userId: number, encryptionKey: string): Promise<{ vercelToken?: string; githubToken?: string; supabaseToken?: string }> {
-  const [user] = await db.select({ vercelToken: users.vercelToken, githubToken: users.githubToken, supabaseToken: users.supabaseToken })
+export async function getUserTokens(userId: number, encryptionKey: string): Promise<{ vercelToken?: string; githubToken?: string; netlifyToken?: string; supabaseToken?: string }> {
+  const [user] = await db.select({ vercelToken: users.vercelToken, githubToken: users.githubToken, netlifyToken: users.netlifyToken, supabaseToken: users.supabaseToken })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
   
   if (!user) return {};
   
-  const tokens: { vercelToken?: string; githubToken?: string; supabaseToken?: string } = {};
+  const tokens: { vercelToken?: string; githubToken?: string; netlifyToken?: string; supabaseToken?: string } = {};
   
   if (user.vercelToken) {
     try {
@@ -147,6 +152,13 @@ export async function getUserTokens(userId: number, encryptionKey: string): Prom
     try {
       const encrypted = JSON.parse(user.githubToken);
       tokens.githubToken = decrypt(encrypted, encryptionKey);
+    } catch { /* ignore */ }
+  }
+
+  if (user.netlifyToken) {
+    try {
+      const encrypted = JSON.parse(user.netlifyToken);
+      tokens.netlifyToken = decrypt(encrypted, encryptionKey);
     } catch { /* ignore */ }
   }
   
