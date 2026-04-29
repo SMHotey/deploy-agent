@@ -30,9 +30,10 @@ export async function GET(
       );
     }
 
-    // Get user tokens
+    // Get user tokens — accept token via query param for EventSource compatibility
+    const tokenParam = request.nextUrl.searchParams.get('token');
     const tokens = await getUserTokens(user.id, process.env.ENCRYPTION_KEY!);
-    const vercelToken = request.headers.get('x-vercel-token') || tokens.vercelToken;
+    const vercelToken = tokenParam || request.headers.get('x-vercel-token') || tokens.vercelToken;
     
     if (!vercelToken) {
       return NextResponse.json(

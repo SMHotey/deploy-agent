@@ -34,6 +34,12 @@ export default function DeploymentDetailsPage() {
     if (deploymentId) {
       fetchDeployment();
     }
+    return () => {
+      // Cleanup SSE on unmount
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
   }, [deploymentId]);
 
   const checkAuth = () => {
@@ -65,6 +71,11 @@ export default function DeploymentDetailsPage() {
       if (data.logs) {
         setLogs(data.logs.split('\n').filter((l: string) => l.trim()));
       }
+
+      // Auto-start streaming for in-progress deployments
+      if (data.status !== 'READY' && data.status !== 'ERROR' && !isStreaming) {
+        setTimeout(() => startStreaming(), 500);
+      }
     } catch (err: any) {
       console.error('Failed to fetch deployment:', err);
     } finally {
@@ -79,7 +90,7 @@ export default function DeploymentDetailsPage() {
     setLogs([]);
     
     const token = localStorage.getItem('accessToken');
-    const eventSource = new EventSource(`/api/deploy/${deploymentId}/stream`);
+    const eventSource = new EventSource(`/api/deploy/${deploymentId}/stream?token=${encodeURIComponent(token || '')}`);
     eventSourceRef.current = eventSource;
 
     eventSource.onmessage = (event) => {
