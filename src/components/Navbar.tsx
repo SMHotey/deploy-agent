@@ -58,6 +58,16 @@ export default function Navbar() {
                   Projects
                 </Link>
                 <Link
+                  href="/analytics"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
+                    isActive('/analytics')
+                      ? 'border-blue-500 text-zinc-900 dark:text-zinc-100'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Analytics
+                </Link>
+                <Link
                   href="/settings"
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
                     isActive('/settings')
@@ -141,6 +151,17 @@ export default function Navbar() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Projects
+            </Link>
+            <Link
+              href="/analytics"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive('/analytics')
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Analytics
             </Link>
             <Link
               href="/settings"
