@@ -154,6 +154,9 @@ export default function ProjectsPage() {
                           View →
                         </a>
                       )}
+                      <Link href={`/projects/${project.id}/env`} className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        Env Vars →
+                      </Link>
                     </div>
                   </div>
                 </CardContent>

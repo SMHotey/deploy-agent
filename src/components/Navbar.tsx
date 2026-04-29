@@ -89,6 +89,16 @@ export default function Navbar() {
                 >
                   Docs
                 </Link>
+                <Link
+                  href="/audit-logs"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
+                    isActive('/audit-logs')
+                      ? 'border-blue-500 text-zinc-900 dark:text-zinc-100'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Audit Logs
+                </Link>
               </div>
 
               <div className="hidden sm:flex sm:items-center">
@@ -201,6 +211,17 @@ export default function Navbar() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Docs
+            </Link>
+            <Link
+              href="/audit-logs"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive('/audit-logs')
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Audit Logs
             </Link>
             <button
               onClick={() => {
