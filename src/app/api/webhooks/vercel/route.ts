@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { parseVercelWebhook } from '@/lib/validation';
 import { db } from '@/db';
-import { deployments, auditLogs } from '@/db/schema';
+import { deployments, auditLogs, deploymentStatusEnum } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { createLogger, generateRequestId } from '@/lib/logger';
 import { isAlreadyProcessed, markProcessed } from '@/lib/idempotency';
+
+type DeploymentStatus = typeof deploymentStatusEnum.enumValues[number];
 
 const VERCEL_WEBHOOK_SECRET = process.env.VERCEL_WEBHOOK_SECRET;
 
@@ -109,7 +111,7 @@ async function handleVercelEvent(
   }
 
   // Update status if needed
-  const statusMap: Record<string, string> = {
+  const statusMap: Record<string, DeploymentStatus> = {
     'BUILDING': 'building',
     'READY': 'ready',
     'ERROR': 'error',
@@ -122,7 +124,7 @@ async function handleVercelEvent(
     await db
       .update(deployments)
       .set({
-        status: newStatus as any,
+        status: newStatus,
         url: deployment.url || deploymentRecord.url,
         readyAt: newStatus === 'ready' ? new Date() : deploymentRecord.readyAt,
       })
