@@ -137,3 +137,48 @@ docker-compose -f docker-compose.yml up -d --build
 ## License
 
 MIT
+
+## Monetization Plan (Stealth Startup - Option A)
+
+### Pricing Tiers
+
+| Plan | Price | Features |
+|------|-------|----------|
+| **Free** | $0 | 3 projects, 10 deployments/day, 1 user, 100MB storage, Community support |
+| **Pro** | $29/mo | 20 projects, 100 deployments/day, 5 team members, 1GB storage, Priority support, Custom domains |
+| **Team** | $99/mo | Unlimited projects, 1,000 deployments/day, 50 team members, 10GB storage, SSO, Sentry, 99.9% SLA |
+| **Enterprise** | $499+/mo | Unlimited everything, Dedicated instance, On-premise, Custom SLA, Phone support |
+
+### Usage Tracking
+
+- Daily deployment limits (resets at midnight UTC)
+- Project count limits
+- Storage quotas (environment variables, build artifacts)
+- Team member limits
+
+### Billing System
+
+- **Billing Dashboard**: `/billing` - View plans, upgrade/cancel (demo mode)
+- **API Endpoint**: `GET/POST /api/billing`
+- **Usage API**: Track deployments, projects, storage
+- **Plan Limits**: Enforced at API level (409 Conflict if exceeded)
+
+### Revenue Projections (Week 8 target: 100 beta users)
+
+- 80 Free users (learning product)
+- 15 Pro users × $29 = $435/mo
+- 5 Team users × $99 = $495/mo
+- **Total MRR**: ~$930/mo
+
+### Go-to-Market
+
+1. **Beta (Weeks 1-4)**: Free tier only, 50-100 users, gather feedback
+2. **Launch (Weeks 5-6)**: Enable Pro/Team, content marketing, Product Hunt launch
+3. **Scale (Weeks 7-8)**: Enterprise outreach, partnerships, $930 MRR goal
+
+### Key Metrics to Track
+
+- Deployment success rate (target: >95%)
+- User retention (Week 1 → Week 4)
+- Upgrade conversion rate (Free → Pro/Team)
+- Support ticket volume (target: <5% of user base)
