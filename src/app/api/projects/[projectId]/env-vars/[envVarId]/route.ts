@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { environmentVariables, projects } from '@/db/schema';
+import { environmentVariables, projects, auditLogs } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { authenticate } from '@/lib/auth';
 import { decrypt, type EncryptedValue } from '@/lib/encryption';
@@ -72,6 +72,21 @@ export async function GET(
     // Decrypt and return value
     const encryptedData = JSON.parse(envVar.encryptedValue) as EncryptedValue;
     const decryptedValue = decrypt(encryptedData, ENCRYPTION_KEY);
+
+    // Audit log — track decryption access
+    await db.insert(auditLogs).values({
+      projectId,
+      userId: user.id,
+      action: 'env_var_decrypted',
+      details: {
+        envVarKey: envVar.key,
+        envVarId,
+        isSecret: envVar.isSecret,
+      },
+      ipAddress: request.headers.get('x-forwarded-for') || 'direct',
+    });
+
+    logger.info('Environment variable decrypted', { projectId, envVarId, key: envVar.key, userId: user.id });
 
     return NextResponse.json({
       id: envVar.id,

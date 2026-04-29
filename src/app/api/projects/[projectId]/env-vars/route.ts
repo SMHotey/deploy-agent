@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { environmentVariables, projects } from '@/db/schema';
+import { environmentVariables, projects, auditLogs } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { authenticate } from '@/lib/auth';
 import { encrypt, decrypt, type EncryptedValue } from '@/lib/encryption';
@@ -130,6 +130,15 @@ export async function POST(
         })
         .where(eq(environmentVariables.id, existing.id));
 
+      // Audit log
+      await db.insert(auditLogs).values({
+        projectId,
+        userId: user.id,
+        action: 'env_var_updated',
+        details: { envVarKey: key, envVarId: existing.id },
+        ipAddress: request.headers.get('x-forwarded-for') || 'direct',
+      });
+
       logger.info('Environment variable updated', { projectId, key });
 
       return NextResponse.json({
@@ -151,6 +160,15 @@ export async function POST(
         isSecret,
       })
       .returning();
+
+    // Audit log
+    await db.insert(auditLogs).values({
+      projectId,
+      userId: user.id,
+      action: 'env_var_created',
+      details: { envVarKey: key, envVarId: newEnvVar.id },
+      ipAddress: request.headers.get('x-forwarded-for') || 'direct',
+    });
 
     logger.info('Environment variable created', { projectId, key });
 
@@ -227,6 +245,15 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    // Audit log
+    await db.insert(auditLogs).values({
+      projectId,
+      userId: user.id,
+      action: 'env_var_deleted',
+      details: { envVarId: parseInt(envVarId) },
+      ipAddress: request.headers.get('x-forwarded-for') || 'direct',
+    });
 
     logger.info('Environment variable deleted', { projectId, envVarId });
 
