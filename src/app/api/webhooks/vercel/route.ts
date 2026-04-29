@@ -5,6 +5,7 @@ import { db } from '@/db';
 import { deployments, auditLogs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { createLogger, generateRequestId } from '@/lib/logger';
+import { isAlreadyProcessed, markProcessed } from '@/lib/idempotency';
 
 const VERCEL_WEBHOOK_SECRET = process.env.VERCEL_WEBHOOK_SECRET;
 
@@ -46,12 +47,12 @@ export async function POST(request: NextRequest) {
 
       // Re-parse since we consumed the body
       const body = JSON.parse(rawBody);
-      return handleVercelEvent(body, vercelEvent, logger, requestId);
+      return handleVercelEvent(body, vercelEvent, eventId, logger, requestId);
     }
 
     // No secret configured — parse body normally
     const body = await request.json();
-    return handleVercelEvent(body, vercelEvent, logger, requestId);
+    return handleVercelEvent(body, vercelEvent, eventId, logger, requestId);
   } catch (error) {
     logger.error('Vercel webhook error', { error });
     return NextResponse.json(
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
 async function handleVercelEvent(
   body: unknown,
   eventType: string,
+  eventIdHeader: string | null,
   logger: ReturnType<typeof createLogger>,
   requestId: string
 ) {
@@ -83,7 +85,18 @@ async function handleVercelEvent(
   const { deployment } = payload;
   const deploymentId = deployment.id;
 
-  logger.info('Vercel deployment event', { deploymentId, eventType });
+  // Build idempotency key from header or fallback
+  const idempotencyKey = eventIdHeader || `${deploymentId}-${eventType}`;
+
+  // Idempotency check — skip if already processed
+  if (await isAlreadyProcessed(idempotencyKey)) {
+    logger.info('Duplicate Vercel webhook event, skipping', { idempotencyKey, deploymentId });
+    return NextResponse.json({ message: 'already processed' });
+  }
+
+  await markProcessed(idempotencyKey);
+
+  logger.info('Vercel deployment event', { deploymentId, eventType, idempotencyKey });
 
   // Find matching deployment record
   const deploymentRecord = await db.query.deployments.findFirst({
