@@ -1,6 +1,6 @@
-import { createVercelClient, type VercelClient, type CreateDeploymentOptions } from '@/lib/vercel';
+import { createVercelClient } from '@/lib/vercel';
 import { createNetlifyClient, type NetlifyClient } from '@/lib/netlify';
-import { createGitHubClient, type GitHubClient } from '@/lib/github';
+import { createGitHubClient } from '@/lib/github';
 import { encrypt, type EncryptedValue } from '@/lib/encryption';
 import { withRetry } from '@/lib/retry';
 import type { DeployParams } from '@/lib/validation';
@@ -467,6 +467,21 @@ const platforms: Record<string, () => PlatformDeployer> = {
  */
 export function registerPlatform(name: string, factory: () => PlatformDeployer): void {
   platforms[name] = factory;
+}
+
+/**
+ * Get a platform by name
+ */
+export function getPlatform(name: string): PlatformDeployer | undefined {
+  const factory = platforms[name];
+  return factory ? factory() : undefined;
+}
+
+/**
+ * List available platform names
+ */
+export function listPlatforms(): string[] {
+  return Object.keys(platforms);
 }
 
 /**

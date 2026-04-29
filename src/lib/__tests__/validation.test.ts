@@ -1,4 +1,4 @@
-import { parseDeployParams, parseGitHubWebhook, parseVercelWebhook } from '../validation';
+import { parseDeployParams, parseGitHubWebhook, parseVercelWebhook, deployResponseSchema } from '../validation';
 
 describe('validation', () => {
   describe('parseDeployParams', () => {
@@ -52,6 +52,79 @@ describe('validation', () => {
 
       expect(result.success).toBe(false);
     });
+
+    it('should accept environment_slug: production', () => {
+      const input = {
+        repo_url: 'https://github.com/user/repo',
+        environment_slug: 'production',
+      };
+
+      const result = parseDeployParams(input);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.environment_slug).toBe('production');
+    });
+
+    it('should accept environment_slug: preview', () => {
+      const input = {
+        repo_url: 'https://github.com/user/repo',
+        environment_slug: 'preview',
+      };
+
+      const result = parseDeployParams(input);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.environment_slug).toBe('preview');
+    });
+
+    it('should accept environment_slug: development', () => {
+      const input = {
+        repo_url: 'https://github.com/user/repo',
+        environment_slug: 'development',
+      };
+
+      const result = parseDeployParams(input);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.environment_slug).toBe('development');
+    });
+
+    it('should reject invalid environment_slug', () => {
+      const input = {
+        repo_url: 'https://github.com/user/repo',
+        environment_slug: 'staging',
+      };
+
+      const result = parseDeployParams(input);
+
+      expect(result.success).toBe(false);
+    });
+
+    it('should default environment_slug to production', () => {
+      const input = {
+        repo_url: 'https://github.com/user/repo',
+      };
+
+      const result = parseDeployParams(input);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.environment_slug).toBe('production');
+    });
+
+    it('should accept all platform types', () => {
+      const platforms = ['vercel', 'netlify', 'cloudflare-pages', 'railway', 'self-hosted-docker'];
+
+      for (const platform of platforms) {
+        const input = {
+          repo_url: 'https://github.com/user/repo',
+          target_platform: platform,
+        };
+
+        const result = parseDeployParams(input);
+        expect(result.success).toBe(true);
+        expect(result.data?.target_platform).toBe(platform);
+      }
+    });
   });
 
   describe('parseGitHubWebhook', () => {
@@ -83,6 +156,32 @@ describe('validation', () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.type).toBe('deployment');
+    });
+  });
+
+  describe('deployResponseSchema', () => {
+    it('should accept response with preview fields', () => {
+      const input = {
+        deployment_id: 'dep_123',
+        status: 'ready',
+        url: 'https://app.vercel.app',
+        preview_url: 'https://pr-42-app.vercel.app',
+        is_preview: true,
+        logs_url: 'https://vercel.com/deployments/dep_123',
+      };
+
+      const result = deployResponseSchema.safeParse(input);
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept minimal response without preview fields', () => {
+      const input = {
+        deployment_id: 'dep_123',
+        status: 'building',
+      };
+
+      const result = deployResponseSchema.safeParse(input);
+      expect(result.success).toBe(true);
     });
   });
 });

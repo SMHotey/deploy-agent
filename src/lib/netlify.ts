@@ -1,5 +1,3 @@
-import { withRetry } from './retry';
-
 const NETLIFY_API_BASE = 'https://api.netlify.com/api/v1';
 const REQUEST_TIMEOUT = 30000;
 
