@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/components/ui/Toast';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 
 interface TokenState {
   vercelToken: string;
@@ -11,6 +16,8 @@ interface TokenState {
 
 export default function TokensSettingsPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading, getToken } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [tokens, setTokens] = useState<TokenState>({
     vercelToken: '',
     githubToken: '',
@@ -21,16 +28,11 @@ export default function TokensSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchTokens();
-  }, []);
-
   const fetchTokens = async () => {
     try {
+      const token = getToken();
       const res = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
@@ -41,19 +43,27 @@ export default function TokensSettingsPage() {
         throw new Error('Failed to fetch tokens');
       }
 
-      // We can't read encrypted tokens from the frontend directly
-      // But we can show if they're configured in the backend
       setTokens({
-        vercelToken: '••••••••', // Masked for security
+        vercelToken: '••••••••',
         githubToken: '••••••••',
         supabaseToken: '••••••••',
       });
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch tokens';
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/');
+      return;
+    }
+    if (!user) return;
+    fetchTokens();
+  }, [user, authLoading, router]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +72,7 @@ export default function TokensSettingsPage() {
     setSuccess(null);
 
     try {
-      const body: any = {};
+      const body: Record<string, string> = {};
 
       if (tokens.vercelToken && tokens.vercelToken !== '••••••••') {
         body.vercelToken = tokens.vercelToken;
@@ -76,11 +86,12 @@ export default function TokensSettingsPage() {
         body.supabaseToken = tokens.supabaseToken;
       }
 
+      const token = getToken();
       const res = await fetch('/api/auth/tokens', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(body),
       });
@@ -91,14 +102,16 @@ export default function TokensSettingsPage() {
         throw new Error(data.error || 'Failed to save tokens');
       }
 
-      setSuccess('Tokens saved successfully!');
+      toastSuccess('Tokens saved successfully!');
       setTokens({
         vercelToken: '••••••••',
         githubToken: '••••••••',
         supabaseToken: '••••••••',
       });
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save tokens';
+      setError(message);
+      toastError(message);
     } finally {
       setSaving(false);
     }
@@ -107,7 +120,7 @@ export default function TokensSettingsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-600 dark:text-zinc-400">Loading...</div>
+        <div className="text-zinc-600 dark:text-zinc-400 animate-pulse">Loading...</div>
       </div>
     );
   }
@@ -118,7 +131,7 @@ export default function TokensSettingsPage() {
         <header className="mb-8">
           <div className="flex items-center gap-4 mb-4">
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.back()}
               className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
             >
               ← Back
@@ -144,97 +157,94 @@ export default function TokensSettingsPage() {
           </div>
         )}
 
-        <form onSubmit={handleSave} className="space-y-6 bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800">
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Vercel Token
-            </label>
-            <input
-              type="password"
-              value={tokens.vercelToken}
-              onChange={(e) => setTokens({ ...tokens, vercelToken: e.target.value })}
-              placeholder="Enter new Vercel token (leave masked to keep current)"
-              title="Your Vercel API token (get it from https://vercel.com/account/tokens)"
-              className="w-full px-4 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <p className="mt-1 text-sm text-zinc-500">
-              Get it from <a href="https://vercel.com/account/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline">vercel.com/account/tokens</a>
-            </p>
-          </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Platform Tokens</CardTitle>
+            <CardDescription>All tokens are encrypted with AES-256-GCM before storage</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSave} className="space-y-6">
+              <Input
+                label="Vercel Token"
+                type="password"
+                value={tokens.vercelToken}
+                onChange={(e) => setTokens({ ...tokens, vercelToken: e.target.value })}
+                placeholder="Enter new Vercel token (leave masked to keep current)"
+                hint={
+                  <>
+                    Get it from{' '}
+                    <a href="https://vercel.com/account/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline">
+                      vercel.com/account/tokens
+                    </a>
+                  </>
+                }
+              />
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              GitHub Token
-            </label>
-            <input
-              type="password"
-              value={tokens.githubToken}
-              onChange={(e) => setTokens({ ...tokens, githubToken: e.target.value })}
-              placeholder="Enter new GitHub token (leave masked to keep current)"
-              title="GitHub Personal Access Token with 'repo' scope (get it from GitHub Settings)"
-              className="w-full px-4 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <p className="mt-1 text-sm text-zinc-500">
-              Create one at <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline">github.com/settings/tokens</a> (need 'repo' scope)
-            </p>
-          </div>
+              <Input
+                label="GitHub Token"
+                type="password"
+                value={tokens.githubToken}
+                onChange={(e) => setTokens({ ...tokens, githubToken: e.target.value })}
+                placeholder="Enter new GitHub token (leave masked to keep current)"
+                hint={
+                  <>
+                    Create one at{' '}
+                    <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline">
+                      github.com/settings/tokens
+                    </a>{' '}
+                    (need &apos;repo&apos; scope)
+                  </>
+                }
+              />
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Supabase Token (optional)
-            </label>
-            <input
-              type="password"
-              value={tokens.supabaseToken}
-              onChange={(e) => setTokens({ ...tokens, supabaseToken: e.target.value })}
-              placeholder="Enter new Supabase token (leave masked to keep current)"
-              title="Supabase service_role key for admin operations"
-              className="w-full px-4 py-2 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <p className="mt-1 text-sm text-zinc-500">
-              Your Supabase service_role key (found in Project Settings → API)
-            </p>
-          </div>
+              <Input
+                label="Supabase Token (optional)"
+                type="password"
+                value={tokens.supabaseToken}
+                onChange={(e) => setTokens({ ...tokens, supabaseToken: e.target.value })}
+                placeholder="Enter new Supabase token (leave masked to keep current)"
+                hint="Your Supabase service_role key (found in Project Settings → API)"
+              />
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {saving ? 'Saving...' : 'Save Tokens'}
-          </button>
-        </form>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Saving...' : 'Save Tokens'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         <section className="mt-12">
           <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
             How to get your tokens
           </h2>
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 space-y-4">
-            <div>
-              <h3 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">1. Vercel Token</h3>
-              <p className="text-zinc-600 dark:text-zinc-400">
-                Go to <strong>Vercel Dashboard → Settings → Tokens</strong>, create a new token with full account access.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">2. GitHub Token</h3>
-              <p className="text-zinc-600 dark:text-zinc-400">
-                Go to <strong>GitHub → Settings → Developer settings → Personal access tokens</strong>, generate a new token with <code>repo</code> scope.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">3. Supabase Token (optional)</h3>
-              <p className="text-zinc-600 dark:text-zinc-400">
-                In your <strong>Supabase project → Project Settings → API</strong>, copy the <code>service_role</code> key. Only needed for admin operations.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">4. Save tokens</h3>
-              <p className="text-zinc-600 dark:text-zinc-400">
-                Paste the tokens above and click "Save Tokens". All tokens are encrypted with AES-256-GCM before storage.
-              </p>
-            </div>
-          </div>
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <div>
+                <h3 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">1. Vercel Token</h3>
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  Go to <strong>Vercel Dashboard → Settings → Tokens</strong>, create a new token with full account access.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">2. GitHub Token</h3>
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  Go to <strong>GitHub → Settings → Developer settings → Personal access tokens</strong>, generate a new token with <code>repo</code> scope.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">3. Supabase Token (optional)</h3>
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  In your <strong>Supabase project → Project Settings → API</strong>, copy the <code>service_role</code> key. Only needed for admin operations.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">4. Save tokens</h3>
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  Paste the tokens above and click &quot;Save Tokens&quot;. All tokens are encrypted with AES-256-GCM before storage.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </section>
       </div>
     </div>

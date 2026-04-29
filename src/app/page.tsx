@@ -1,260 +1,188 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/components/ui/Toast';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
-export default function Home() {
+export default function AuthPage() {
   const router = useRouter();
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const { success, error: toastError } = useToast();
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, router]);
 
-  const checkAuth = async () => {
+  const validate = (): boolean => {
+    const e: typeof errors = {};
+    if (mode === 'register' && !name.trim()) e.name = 'Name is required';
+    if (!email.trim()) e.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Invalid email format';
+    if (!password) e.password = 'Password is required';
+    else if (password.length < 6) e.password = 'Password must be at least 6 characters';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async (ev: FormEvent) => {
+    ev.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    setErrors({});
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        setIsAuthenticated(false);
-        setCheckingAuth(false);
-        return;
-      }
-
-      const res = await fetch('/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` },
+      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const body: Record<string, string> = { email, password };
+      if (mode === 'register') body.name = name;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-
-      if (res.ok) {
-        setIsAuthenticated(true);
-        router.push('/dashboard');
-        return;
-      }
-
-      setIsAuthenticated(false);
-    } catch {
-      setIsAuthenticated(false);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || (mode === 'login' ? 'Login failed' : 'Registration failed'));
+      login(data.token);
+      success(mode === 'login' ? 'Welcome back!' : 'Account created!');
+      router.push('/dashboard');
+    } catch (err: any) {
+      toastError(err.message);
     } finally {
-      setCheckingAuth(false);
+      setLoading(false);
     }
   };
 
-  if (checkingAuth) {
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-600 dark:text-zinc-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <svg className="h-10 w-10 animate-spin text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
       </div>
     );
   }
 
-  if (isAuthenticated) {
-    return null; // Will redirect to dashboard
-  }
+  if (isAuthenticated) return null;
 
-  // Landing page for non-authenticated users
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
-          <div className="text-center">
-            <h1 className="text-5xl md:text-6xl font-bold text-zinc-900 dark:text-zinc-50 mb-6">
-              Ship Code{' '}
-              <span className="text-blue-600">Faster</span>
-            </h1>
-            <p className="text-xl text-zinc-600 dark:text-zinc-400 mb-8 max-w-3xl mx-auto">
-              One-click deployment from any git repository to Vercel, Netlify, Cloudflare Pages, and Railway. 
-              Full configuration, zero hassle.
-            </p>
-            <div className="flex gap-4 justify-center">
-              <a
-                href="/api/auth/register"
-                className="px-8 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-lg"
-              >
-                Start Deploying
-              </a>
-              <a
-                href="#features"
-                className="px-8 py-3 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors text-lg"
-              >
-                Learn More
-              </a>
-            </div>
-
-            {/* Social Proof */}
-            <div className="mt-12 flex items-center justify-center gap-8 text-sm text-zinc-500 dark:text-zinc-400">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
-                </svg>
-                <span>Free to start</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
-                </svg>
-                <span>No credit card required</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
-                </svg>
-                <span>Deploy in seconds</span>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen flex bg-background">
+      {/* Left Hero */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 animate-gradient">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute w-72 h-72 rounded-full bg-white/10 blur-3xl animate-float top-20 left-20" />
+          <div className="absolute w-96 h-96 rounded-full bg-white/5 blur-3xl animate-float bottom-20 right-10" style={{ animationDelay: '1s' }} />
+          <div className="absolute w-48 h-48 rounded-full bg-pink-400/20 blur-2xl animate-float top-40 right-40" style={{ animationDelay: '2s' }} />
         </div>
-
-        {/* Background decoration */}
-        <div className="absolute inset-x-0 top-0 -z-10 transform-gpu overflow-hidden blur-3xl">
-          <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]" />
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-zinc-50 dark:bg-zinc-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-4">
-              Everything you need to ship
-            </h2>
-            <p className="text-lg text-zinc-600 dark:text-zinc-400">
-              Powerful features for modern deployment workflows
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: (
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                ),
-                title: 'Instant Deploys',
-                description: 'Deploy from any git repository with a single click. Supports GitHub, GitLab, and Bitbucket.',
-              },
-              {
-                icon: (
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                ),
-                title: 'Secure by Default',
-                description: 'AES-256-GCM encryption for all tokens and secrets. Rate limiting and secure headers included.',
-              },
-              {
-                icon: (
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                ),
-                title: 'Real-time Logs',
-                description: 'Watch your deployments live with SSE streaming. Debug faster with instant feedback.',
-              },
-              {
-                icon: (
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.428-1.977 2.904-3.254 5.73-3.254 2.828 0 5.323 1.277 5.323 4.213 0 1.868-1.465 3.317-3.677 4.149-1.422.536-2.603 1.15-2.603 2.776v.667c0 .552-.452 1-1.006 1H10.57c-.554 0-1.006-.448-1.006-1v-.667c0-1.627-1.18-2.24-2.602-2.776C5.757 8.03 4.292 6.58 4.292 4.713 4.292 1.777 6.787.5 9.615.5c2.826 0 5.302 1.277 5.73 3.254" />
-                  </svg>
-                ),
-                title: '100+ Parameters',
-                description: 'Full control over your deployments. Environment variables, build commands, custom domains, and more.',
-              },
-              {
-                icon: (
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                ),
-                title: 'Multi-Platform',
-                description: 'Deploy to Vercel, Netlify, Cloudflare Pages, or Railway. One tool for all platforms.',
-              },
-              {
-                icon: (
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                ),
-                title: 'Analytics & Insights',
-                description: 'Track deployment success rates, build times, and project health from your dashboard.',
-              },
-            ].map((feature, i) => (
-              <div key={i} className="bg-white dark:bg-zinc-800 p-6 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700">
-                <div className="mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-zinc-600 dark:text-zinc-400">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Supported Platforms */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-4">
-              Deploy Anywhere
-            </h2>
-            <p className="text-lg text-zinc-600 dark:text-zinc-400">
-              Supports all major deployment platforms
-            </p>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-8">
-            {['Vercel', 'Netlify', 'Cloudflare Pages', 'Railway'].map((platform) => (
-              <div
-                key={platform}
-                className="px-8 py-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-700 dark:text-zinc-300 font-medium"
-              >
-                {platform}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-blue-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Ready to ship faster?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join developers who trust Deploy Agent for their deployment needs.
+        <div className="relative z-10 flex flex-col items-center justify-center text-white px-12">
+          <h1 className="text-5xl font-bold mb-4 animate-fade-in-up stagger-1">
+            Deploy Agent
+          </h1>
+          <p className="text-xl text-white/80 text-center max-w-md animate-fade-in-up stagger-2">
+            Ship code faster. Deploy to any platform with one click.
           </p>
-          <a
-            href="/api/auth/register"
-            className="inline-block px-8 py-3 bg-white text-blue-600 font-medium rounded-lg hover:bg-blue-50 transition-colors text-lg"
-          >
-            Get Started for Free
-          </a>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-8 border-t border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center gap-2 mb-4 md:mb-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600">
-                <span className="font-semibold text-white">D</span>
+          <div className="mt-8 space-y-3 animate-fade-in-up stagger-3">
+            {['Free to start', 'No credit card required', 'Deploy in seconds'].map((t) => (
+              <div key={t} className="flex items-center gap-2 text-white/70">
+                <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
+                </svg>
+                <span>{t}</span>
               </div>
-              <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                Deploy Agent
-              </span>
-            </div>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              © 2026 Deploy Agent. All rights reserved.
-            </p>
+            ))}
           </div>
         </div>
-      </footer>
+      </div>
+
+      {/* Right Auth Form */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md animate-fade-in-up">
+          {/* Logo */}
+          <div className="flex items-center gap-2 mb-8">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
+              <span className="font-bold text-white text-lg">D</span>
+            </div>
+            <span className="text-xl font-semibold text-foreground">Deploy Agent</span>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 p-1 rounded-lg bg-muted mb-6">
+            {(['login', 'register'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setErrors({}); }}
+                className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all ${
+                  mode === m
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {m === 'login' ? 'Sign In' : 'Sign Up'}
+              </button>
+            ))}
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'register' && (
+              <Input
+                label="Name"
+                type="text"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                error={errors.name}
+                className="animate-fade-in-up stagger-1"
+              />
+            )}
+            <Input
+              label="Email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              error={errors.email}
+              className="animate-fade-in-up stagger-2"
+            />
+            <Input
+              label="Password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={errors.password}
+              hint={mode === 'register' ? 'Min 6 characters' : undefined}
+              className="animate-fade-in-up stagger-3"
+            />
+            <Button
+              type="submit"
+              loading={loading}
+              className="w-full h-11 animate-fade-in-up stagger-4"
+            >
+              {mode === 'login' ? 'Sign In' : 'Create Account'}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground animate-fade-in-up stagger-5">
+            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+            <button
+              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setErrors({}); }}
+              className="text-blue-600 hover:text-blue-500 font-medium"
+            >
+              {mode === 'login' ? 'Sign up' : 'Sign in'}
+            </button>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

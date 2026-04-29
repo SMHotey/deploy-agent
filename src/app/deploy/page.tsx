@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 
@@ -82,6 +84,8 @@ const FRAMEWORKS = [
 
 export default function NewDeploymentPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading, getToken } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [step, setStep] = useState<DeployStep>('basic');
   const [form, setForm] = useState<DeployForm>(DEFAULT_FORM);
   const [envVars, setEnvVars] = useState<EnvVar[]>([]);
@@ -96,27 +100,10 @@ export default function NewDeploymentPage() {
     githubToken: false,
   });
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      router.push('/');
-      return;
-    }
-
+  const checkTokens = async () => {
+    const token = getToken();
+    if (!token) return;
     try {
-      const res = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        router.push('/');
-        return;
-      }
-
-      // Check if user has tokens configured
       const tokensRes = await fetch('/api/auth/tokens', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -128,9 +115,18 @@ export default function NewDeploymentPage() {
         });
       }
     } catch {
-      router.push('/');
+      // Ignore
     }
   };
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/');
+      return;
+    }
+    if (!user) return;
+    checkTokens();
+  }, [user, authLoading, router]);
 
   const updateForm = (field: keyof DeployForm, value: unknown) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -157,7 +153,7 @@ export default function NewDeploymentPage() {
     setError(null);
     setStep('deploying');
 
-    const token = localStorage.getItem('accessToken');
+    const token = getToken();
     if (!token) {
       router.push('/');
       return;
@@ -222,9 +218,11 @@ export default function NewDeploymentPage() {
       setPreviewUrl(data.preview_url || null);
       setIsPreview(data.is_preview || false);
       setStep('success');
+      toastSuccess(isPreview ? 'Preview deployment started!' : 'Deployment started!');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Deployment failed');
       setStep('error');
+      toastError(err instanceof Error ? err.message : 'Deployment failed');
     }
   };
 

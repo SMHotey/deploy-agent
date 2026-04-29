@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/components/ui/Toast';
 
 interface BillingInfo {
   subscription: {
@@ -27,6 +29,8 @@ interface BillingInfo {
 
 export default function BillingPage() {
   const router = useRouter();
+  const { getToken } = useAuth();
+  const toast = useToast();
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
@@ -38,7 +42,7 @@ export default function BillingPage() {
   }, []);
 
   const checkAuth = () => {
-    const token = localStorage.getItem('accessToken');
+    const token = getToken();
     if (!token) {
       router.push('/');
     }
@@ -46,7 +50,7 @@ export default function BillingPage() {
 
   const fetchBillingInfo = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = getToken();
       if (!token) return;
 
       const res = await fetch('/api/billing', {
@@ -71,7 +75,7 @@ export default function BillingPage() {
   };
 
   const handleUpgrade = async (plan: string) => {
-    if (!confirm(`Upgrade to ${plan} plan? (Demo mode - no payment)`)) {
+    if (!window.confirm(`Upgrade to ${plan} plan? (Demo mode - no payment)`)) {
       return;
     }
 
@@ -79,7 +83,7 @@ export default function BillingPage() {
     setError(null);
 
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = getToken();
       const res = await fetch('/api/billing', {
         method: 'POST',
         headers: {
@@ -94,7 +98,7 @@ export default function BillingPage() {
         throw new Error(data.error || 'Failed to upgrade');
       }
 
-      alert('Subscription upgraded successfully! (Demo mode)');
+      toast.success('Subscription upgraded successfully! (Demo mode)');
       fetchBillingInfo();
     } catch (err: any) {
       setError(err.message);
@@ -104,12 +108,12 @@ export default function BillingPage() {
   };
 
   const handleCancel = async () => {
-    if (!confirm('Cancel subscription at period end?')) {
+    if (!window.confirm('Cancel subscription at period end?')) {
       return;
     }
 
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = getToken();
       const res = await fetch('/api/billing', {
         method: 'POST',
         headers: {
@@ -124,7 +128,7 @@ export default function BillingPage() {
         throw new Error(data.error || 'Failed to cancel');
       }
 
-      alert('Subscription will cancel at period end.');
+      toast.success('Subscription will cancel at period end.');
       fetchBillingInfo();
     } catch (err: any) {
       setError(err.message);

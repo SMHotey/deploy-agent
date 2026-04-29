@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
 
 interface Deployment {
   id: number;
@@ -21,6 +22,7 @@ interface Deployment {
 export default function DeploymentDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, isLoading: authLoading, getToken } = useAuth();
   const [deployment, setDeployment] = useState<Deployment | null>(null);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<string[]>([]);
@@ -29,117 +31,7 @@ export default function DeploymentDetailsPage() {
 
   const deploymentId = params.id as string;
 
-  useEffect(() => {
-    checkAuth();
-    if (deploymentId) {
-      fetchDeployment();
-    }
-    return () => {
-      // Cleanup SSE on unmount
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-    };
-  }, [deploymentId]);
-
-  const checkAuth = () => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      router.push('/');
-    }
-  };
-
-  const fetchDeployment = async () => {
-    try {
-      const res = await fetch(`/api/deploy?deployment_id=${deploymentId}`, {
-        headers: { 
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}` 
-        },
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push('/');
-          return;
-        }
-        throw new Error('Failed to fetch deployment');
-      }
-
-      const data = await res.json();
-      setDeployment(data);
-      
-      if (data.logs) {
-        setLogs(data.logs.split('\n').filter((l: string) => l.trim()));
-      }
-
-      // Auto-start streaming for in-progress deployments
-      if (data.status !== 'READY' && data.status !== 'ERROR' && !isStreaming) {
-        setTimeout(() => startStreaming(), 500);
-      }
-    } catch (err: any) {
-      console.error('Failed to fetch deployment:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const startStreaming = () => {
-    if (isStreaming) return;
-    
-    setIsStreaming(true);
-    setLogs([]);
-    
-    const token = localStorage.getItem('accessToken');
-    const eventSource = new EventSource(`/api/deploy/${deploymentId}/stream?token=${encodeURIComponent(token || '')}`);
-    eventSourceRef.current = eventSource;
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        handleStreamEvent(data);
-      } catch (e) {
-        console.error('Failed to parse SSE message:', e);
-      }
-    };
-
-    eventSource.addEventListener('status', (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-        handleStreamEvent({ event: 'status', ...data });
-      } catch (e) {
-        console.error('Failed to parse status event:', e);
-      }
-    });
-
-    eventSource.addEventListener('complete', (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-        handleStreamEvent({ event: 'complete', ...data });
-        eventSource.close();
-        setIsStreaming(false);
-        fetchDeployment(); // Refresh deployment data
-      } catch (e) {
-        console.error('Failed to parse complete event:', e);
-      }
-    });
-
-    eventSource.addEventListener('error', (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-        setLogs(prev => [...prev, `ERROR: ${data.error}`]);
-      } catch (e) {
-        setLogs(prev => [...prev, 'Stream error occurred']);
-      }
-    });
-
-    eventSource.onerror = () => {
-      setLogs(prev => [...prev, 'Connection lost. Reconnecting...']);
-      eventSource.close();
-      setIsStreaming(false);
-    };
-  };
-
-  const handleStreamEvent = (data: any) => {
+  const handleStreamEvent = (data: Record<string, unknown>) => {
     switch (data.event) {
       case 'start':
         setLogs(prev => [...prev, `▶ ${data.message}`]);
@@ -147,7 +39,7 @@ export default function DeploymentDetailsPage() {
       case 'status':
         setLogs(prev => [...prev, `Status: ${data.state}`]);
         if (deployment) {
-          setDeployment({ ...deployment, status: data.state });
+          setDeployment({ ...deployment, status: String(data.state) });
         }
         break;
       case 'complete':
@@ -171,6 +63,103 @@ export default function DeploymentDetailsPage() {
     };
     return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-zinc-800 dark:text-zinc-300';
   };
+
+  const startStreaming = () => {
+    if (isStreaming) return;
+
+    setIsStreaming(true);
+    setLogs([]);
+
+    const token = getToken();
+    const eventSource = new EventSource(`/api/deploy/${deploymentId}/stream?token=${encodeURIComponent(token || '')}`);
+    eventSourceRef.current = eventSource;
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        handleStreamEvent(data);
+      } catch {
+        console.error('Failed to parse SSE message');
+      }
+    };
+
+    eventSource.addEventListener('status', (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        handleStreamEvent({ event: 'status', ...data });
+      } catch {
+        console.error('Failed to parse status event');
+      }
+    });
+
+    eventSource.addEventListener('complete', (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        handleStreamEvent({ event: 'complete', ...data });
+        eventSource.close();
+        setIsStreaming(false);
+        fetchDeployment();
+      } catch {
+        console.error('Failed to parse complete event');
+      }
+    });
+
+    eventSource.addEventListener('error', () => {
+      setLogs(prev => [...prev, 'Stream error occurred']);
+    });
+
+    eventSource.onerror = () => {
+      setLogs(prev => [...prev, 'Connection lost. Reconnecting...']);
+      eventSource.close();
+      setIsStreaming(false);
+    };
+  };
+
+  const fetchDeployment = async () => {
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/deploy?deployment_id=${deploymentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.push('/');
+          return;
+        }
+        throw new Error('Failed to fetch deployment');
+      }
+
+      const data = await res.json();
+      setDeployment(data);
+
+      if (data.logs) {
+        setLogs(data.logs.split('\n').filter((l: string) => l.trim()));
+      }
+
+      if (data.status !== 'READY' && data.status !== 'ERROR' && !isStreaming) {
+        setTimeout(() => startStreaming(), 500);
+      }
+    } catch (err: unknown) {
+      console.error('Failed to fetch deployment:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/');
+      return;
+    }
+    if (!user || !deploymentId) return;
+    fetchDeployment();
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
+  }, [deploymentId, user, authLoading, router]);
 
   if (loading) {
     return (

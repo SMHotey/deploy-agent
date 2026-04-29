@@ -21,11 +21,30 @@ interface AnalyticsData {
 }
 
 export default function AnalyticsPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const auth = useAuth();
+  const { user, isLoading: authLoading, getToken } = auth;
   const router = useRouter();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
+
+  // Simple animated number hook for counters
+  const AnimatedNumber = ({ value }: { value: number }) => {
+    const [n, setN] = useState(0);
+    useEffect(() => {
+      let raf = 0;
+      const duration = 900;
+      const start = performance.now();
+      const tick = (t: number) => {
+        const p = Math.min(1, (t - start) / duration);
+        setN(Math.floor(p * value));
+        if (p < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(raf);
+    }, [value]);
+    return <span>{n.toLocaleString()}</span>;
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -41,7 +60,7 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = getToken();
       const res = await fetch(`/api/analytics?days=${days}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -75,7 +94,7 @@ export default function AnalyticsPage() {
   const maxDailyCount = Math.max(...data.dailyTrend.map((d) => d.total), 1);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 animate-fade-in-up">
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <header className="mb-8">
@@ -106,12 +125,12 @@ export default function AnalyticsPage() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          <StatCard label="Total" value={data.summary.totalDeployments.toString()} />
-          <StatCard label="Success Rate" value={`${data.summary.successRate}%`} accent="green" />
-          <StatCard label="Successful" value={data.summary.successfulDeployments.toString()} accent="green" />
-          <StatCard label="Failed" value={data.summary.failedDeployments.toString()} accent="red" />
-          <StatCard label="Error Rate" value={`${data.summary.errorRate}%`} accent="red" />
-          <StatCard label="Avg Build" value={`${data.summary.avgBuildTimeSeconds}s`} accent="blue" />
+          <StatCard label="Total" value={<AnimatedNumber value={data.summary.totalDeployments} />} />
+          <StatCard label="Success Rate" value={<span><AnimatedNumber value={Math.round(data.summary.successRate)} />%</span>} accent="green" />
+          <StatCard label="Successful" value={<AnimatedNumber value={data.summary.successfulDeployments} />} accent="green" />
+          <StatCard label="Failed" value={<AnimatedNumber value={data.summary.failedDeployments} />} accent="red" />
+          <StatCard label="Error Rate" value={<span><AnimatedNumber value={Math.round(data.summary.errorRate)} />%</span>} accent="red" />
+          <StatCard label="Avg Build" value={<AnimatedNumber value={data.summary.avgBuildTimeSeconds} />} accent="blue" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -282,7 +301,7 @@ export default function AnalyticsPage() {
   );
 }
 
-function StatCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function StatCard({ label, value, accent }: { label: string; value: any; accent?: string }) {
   const accentClasses = {
     green: 'text-green-600 dark:text-green-400',
     red: 'text-red-600 dark:text-red-400',

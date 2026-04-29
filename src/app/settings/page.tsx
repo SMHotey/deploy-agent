@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/components/ui/Toast';
+import { Input } from '@/components/ui/Input';
+import { Card as UiCard, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 
 type Tab = 'tokens' | 'supabase' | 'notifications';
 
@@ -40,6 +45,8 @@ const PLANS = [
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { getToken } = useAuth();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('tokens');
 
   // Auth
@@ -82,7 +89,7 @@ export default function SettingsPage() {
   // Auth check + fetch data
   useEffect(() => {
     const init = async () => {
-      const token = localStorage.getItem('accessToken');
+      const token = getToken();
       if (!token) {
         router.push('/');
         return;
@@ -136,7 +143,7 @@ export default function SettingsPage() {
     init();
   }, [router]);
 
-  const getToken = () => localStorage.getItem('accessToken');
+  // Token retrieval moved to useAuth() hook. Do not access localStorage directly.
 
   const handleSaveTokens = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +159,7 @@ export default function SettingsPage() {
       if (tokens.supabaseToken && tokens.supabaseToken !== '••••••••') body.supabaseToken = tokens.supabaseToken;
 
       if (Object.keys(body).length === 0) {
-        setSuccess('No changes to save');
+        toast.info('No changes to save');
         return;
       }
 
@@ -167,8 +174,7 @@ export default function SettingsPage() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save tokens');
-
-      setSuccess('Tokens saved successfully!');
+      toast.success('Tokens saved successfully!');
       setTokens((prev) => {
         const updated = { ...prev };
         Object.keys(body).forEach((key) => {
@@ -177,7 +183,7 @@ export default function SettingsPage() {
         return updated;
       });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSavingTokens(false);
     }
@@ -203,7 +209,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save config');
 
-      setSuccess('Supabase configuration saved!');
+      toast.success('Supabase configuration saved!');
       setSupabaseForm((prev) => ({
         ...prev,
         anonKey: '',
@@ -217,7 +223,7 @@ export default function SettingsPage() {
         setSupabaseConfig(configData);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSavingSupabase(false);
     }
@@ -285,8 +291,8 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-600 dark:text-zinc-400">Loading settings...</div>
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-6">
+        <SkeletonCard />
       </div>
     );
   }
@@ -347,7 +353,12 @@ export default function SettingsPage() {
         {/* Tokens Tab */}
         {activeTab === 'tokens' && (
           <form onSubmit={handleSaveTokens} className="space-y-6">
-            <Card title="API Tokens" description="Secure tokens for connecting to external platforms. All tokens are encrypted with AES-256-GCM.">
+            <UiCard>
+              <CardHeader>
+                <CardTitle>API Tokens</CardTitle>
+                <CardDescription>Secure tokens for connecting to external platforms. All tokens are encrypted with AES-256-GCM.</CardDescription>
+              </CardHeader>
+              <CardContent>
               <div className="space-y-4">
                 <TokenField
                   label="Vercel Token"
@@ -381,7 +392,8 @@ export default function SettingsPage() {
                   isOptional
                 />
               </div>
-            </Card>
+              </CardContent>
+            </UiCard>
             <div className="flex justify-end">
               <button
                 type="submit"
@@ -411,7 +423,12 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <Card title="Supabase Connection" description="Connect your Supabase project for database and authentication support.">
+            <UiCard>
+              <CardHeader>
+                <CardTitle>Supabase Connection</CardTitle>
+                <CardDescription>Connect your Supabase project for database and authentication support.</CardDescription>
+              </CardHeader>
+              <CardContent>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
@@ -507,7 +524,8 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
-            </Card>
+              </CardContent>
+            </UiCard>
 
             {testResult && (
               <div className={`p-4 rounded-lg border ${
@@ -551,7 +569,12 @@ export default function SettingsPage() {
         {/* Notifications Tab */}
         {activeTab === 'notifications' && (
           <form onSubmit={handleSaveNotifications} className="space-y-6">
-            <Card title="Notification Channels" description="Get alerts when deployments complete or fail.">
+            <UiCard>
+              <CardHeader>
+                <CardTitle>Notification Channels</CardTitle>
+                <CardDescription>Get alerts when deployments complete or fail.</CardDescription>
+              </CardHeader>
+              <CardContent>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
@@ -590,7 +613,8 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
-            </Card>
+              </CardContent>
+            </UiCard>
             <div className="flex justify-end">
               <button
                 type="submit"
@@ -607,17 +631,7 @@ export default function SettingsPage() {
   );
 }
 
-function Card({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
-      <div className="p-6 border-b border-zinc-200 dark:border-zinc-700">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{title}</h2>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{description}</p>
-      </div>
-      <div className="p-6">{children}</div>
-    </div>
-  );
-}
+// Removed legacy Card wrapper to favor UiCard usage from design system
 
 function TokenField({ label, value, onChange, hint, href, linkText, isOptional }: {
   label: string;
@@ -629,27 +643,20 @@ function TokenField({ label, value, onChange, hint, href, linkText, isOptional }
   isOptional?: boolean;
 }) {
   const isConfigured = value === '••••••••';
-
   return (
     <div>
-      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
-        {label} {isOptional && <span className="text-zinc-400">(optional)</span>}
-        {isConfigured && <span className="ml-2 text-xs text-green-600 dark:text-green-400">✅ Configured</span>}
-      </label>
-      <input
-        type="password"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={isConfigured ? 'Leave masked to keep current' : `Enter new ${label}`}
-        className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors font-mono text-sm"
-      />
-      <p className="mt-1 text-xs text-zinc-500">
-        {href ? (
-          <>Get it from <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">{linkText}</a></>
-        ) : (
-          hint
-        )}
-      </p>
+      <div className="flex items-center justify-between">
+        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+          {label} {isOptional && <span className="text-zinc-400">(optional)</span>}
+          {isConfigured && <span className="ml-2 text-xs text-green-600 dark:text-green-400">✅ Configured</span>}
+        </label>
+      </div>
+      <Input label={label} type="password" value={value} onChange={(e) => onChange(e.target.value)} />
+      <p className="mt-1 text-xs text-zinc-500">{href ? (
+        <>Get it from <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">{linkText}</a></>
+      ) : (
+        hint
+      )}</p>
     </div>
   );
 }
