@@ -7,10 +7,6 @@ export const metadata = {
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-card text-muted-foreground">
-      {/* Global smooth scrolling */}
-      <style jsx global>{`
-        html { scroll-behavior: smooth; }
-      `}</style>
 
       {/* Hero Section with animated gradient mesh background and staggered text */}
       <section id="hero" className="relative overflow-hidden pt-20 pb-40">
