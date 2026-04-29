@@ -1,33 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-    const token = localStorage.getItem('accessToken');
-    setIsAuthenticated(!!token);
-  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    setIsAuthenticated(false);
-    window.location.href = '/';
+    logout();
   };
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
     return pathname.startsWith(path);
   };
-
-  if (!isClient) return null;
 
   return (
     <nav className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50">
