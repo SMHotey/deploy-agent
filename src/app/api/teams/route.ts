@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { teams, teamMembers, users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { authenticate } from '@/lib/auth';
 import { createLogger, generateRequestId } from '@/lib/logger';
 
@@ -16,23 +16,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Get teams where user is owner or member
-    const userTeams = await db.query.teams.findMany({
+    // Find teams where user is a member
+    const memberships = await db.query.teamMembers.findMany({
+      where: eq(teamMembers.userId, user.id),
       with: {
-        members: {
+        team: {
           with: {
-            user: true,
+            owner: true,
           },
         },
-        owner: true,
       },
-      where: (teams, { or, eq }) => or(
-        eq(teams.ownerId, user.id),
-        // TODO: Add check for team_members
-      ),
     });
 
-    return NextResponse.json({ teams: userTeams });
+    const result = memberships.map((m) => ({
+      id: m.team.id,
+      name: m.team.name,
+      description: m.team.description,
+      ownerId: m.team.ownerId,
+      ownerName: m.team.owner?.name || null,
+      role: m.role,
+      createdAt: m.team.createdAt.toISOString(),
+      updatedAt: m.team.updatedAt.toISOString(),
+    }));
+
+    logger.info('Teams listed', { userId: user.id, count: result.length });
+
+    return NextResponse.json({ teams: result });
   } catch (error) {
     logger.error('Teams GET error', { error });
     return NextResponse.json({ error: 'Failed to get teams' }, { status: 500 });
@@ -53,15 +62,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, description } = body;
 
-    if (!name) {
-      return NextResponse.json({ error: 'Team name required' }, { status: 400 });
+    if (!name || name.trim().length === 0) {
+      return NextResponse.json({ error: 'Team name is required' }, { status: 400 });
     }
 
-    const [team] = await db.insert(teams).values({
-      name,
-      description: description || null,
-      ownerId: user.id,
-    }).returning();
+    const [team] = await db
+      .insert(teams)
+      .values({
+        name: name.trim(),
+        description: description?.trim() || null,
+        ownerId: user.id,
+      })
+      .returning();
 
     // Add owner as team member
     await db.insert(teamMembers).values({
@@ -70,7 +82,19 @@ export async function POST(request: NextRequest) {
       role: 'owner',
     });
 
-    return NextResponse.json({ team }, { status: 201 });
+    logger.info('Team created', { teamId: team.id, ownerId: user.id });
+
+    return NextResponse.json(
+      {
+        id: team.id,
+        name: team.name,
+        description: team.description,
+        ownerId: team.ownerId,
+        role: 'owner',
+        createdAt: team.createdAt.toISOString(),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     logger.error('Teams POST error', { error });
     return NextResponse.json({ error: 'Failed to create team' }, { status: 500 });
