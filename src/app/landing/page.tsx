@@ -5,13 +5,15 @@ export const metadata = {
 };
 
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-card text-muted-foreground">
+      <Navbar />
 
       {/* Hero Section with animated gradient mesh background and staggered text */}
-      <section id="hero" className="relative overflow-hidden pt-20 pb-40">
+      <section id="hero" className="relative overflow-hidden pt-20 pb-40 bg-zinc-900 dark:bg-zinc-950">
         {/* Animated gradient mesh background blobs */}
         <div className="absolute inset-0 -z-10 pointer-events-none" aria-hidden="true">
           <div className="absolute w-72 h-72 rounded-full bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 opacity-40 top-20 left-6 animate-float" />
@@ -32,7 +34,7 @@ export default function LandingPage() {
           </p>
           <div className="mt-8 flex justify-center gap-4 flex-wrap animate-fade-in-up stagger-3">
             <Link
-              href="/"
+              href="/deploy"
               className="px-8 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 text-white font-medium hover:from-blue-500 hover:to-violet-500 transition-colors"
             >
               Start Deploying
@@ -67,7 +69,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section with glassmorphism cards */}
-      <section id="features" className="py-20 bg-card dark:bg-zinc-950 border-t border-border">
+      <section id="features" className="py-20 bg-zinc-50 dark:bg-zinc-900 border-t border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-4">Everything you need to ship</h2>
@@ -148,7 +150,7 @@ export default function LandingPage() {
       </section>
 
       {/* Platforms Section with hover effects */}
-      <section className="py-20 bg-card dark:bg-zinc-950 border-t border-border">
+      <section className="py-20 bg-zinc-50 dark:bg-zinc-900 border-t border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-12">
             <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-4">Deploy Anywhere</h2>
@@ -169,20 +171,20 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section with gradient background and animated border */}
-      <section className="py-20 bg-card">
+      <section className="py-20 bg-zinc-900 dark:bg-zinc-950">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="relative rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 p-1 overflow-hidden">
-            <div className="rounded-xl bg-card p-8 text-center">
-              <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-4">Ready to ship faster?</h2>
-              <p className="text-lg text-muted-foreground mb-6">Join developers who trust Deploy Agent for their deployment needs.</p>
-               <Link href="/" className="inline-block px-8 py-3 rounded-lg bg-white text-blue-600 font-medium hover:bg-blue-50 transition-colors">Get Started for Free</Link>
+            <div className="rounded-xl bg-zinc-900 dark:bg-zinc-950 p-8 text-center">
+              <h2 className="text-3xl font-bold text-white mb-4">Ready to ship faster?</h2>
+              <p className="text-lg text-zinc-300 mb-6">Join developers who trust Deploy Agent for their deployment needs.</p>
+               <Link href="/deploy" className="inline-block px-8 py-3 rounded-lg bg-white text-blue-600 font-medium hover:bg-blue-50 transition-colors">Get Started for Free</Link>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-8 border-t border-border">
+      <footer className="py-8 border-t border-border bg-zinc-900 dark:bg-zinc-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
