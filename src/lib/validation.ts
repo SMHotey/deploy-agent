@@ -94,6 +94,8 @@ export const deployResponseSchema = z.object({
   project_id: z.number().optional(),
   status: z.enum(['pending', 'building', 'ready', 'error']),
   url: z.string().url().optional(),
+  preview_url: z.string().url().optional(),
+  is_preview: z.boolean().optional(),
   logs_url: z.string().optional(),
   message: z.string().optional(),
 });

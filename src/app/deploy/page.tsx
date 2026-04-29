@@ -19,6 +19,7 @@ interface DeployForm {
   project_name: string;
   target_platform: 'vercel' | 'netlify' | 'cloudflare-pages' | 'railway';
   branch: string;
+  environment_slug: 'production' | 'preview' | 'development';
   root_directory: string;
   framework_preset: string;
   build_command: string;
@@ -42,6 +43,7 @@ const DEFAULT_FORM: DeployForm = {
   project_name: '',
   target_platform: 'vercel',
   branch: 'main',
+  environment_slug: 'production',
   root_directory: '/',
   framework_preset: '',
   build_command: '',
@@ -87,6 +89,8 @@ export default function NewDeploymentPage() {
   const [error, setError] = useState<string | null>(null);
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreview, setIsPreview] = useState(false);
   const [userTokens, setUserTokens] = useState<{ vercelToken: boolean; githubToken: boolean }>({
     vercelToken: false,
     githubToken: false,
@@ -174,6 +178,7 @@ export default function NewDeploymentPage() {
       target_platform: form.target_platform,
       branch: form.branch || 'main',
       root_directory: form.root_directory || '/',
+      environment_slug: form.environment_slug,
       wait_for_completion: form.wait_for_completion,
     };
 
@@ -214,6 +219,8 @@ export default function NewDeploymentPage() {
       const data = await res.json();
       setDeploymentId(data.deployment_id);
       setDeployUrl(data.url);
+      setPreviewUrl(data.preview_url || null);
+      setIsPreview(data.is_preview || false);
       setStep('success');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Deployment failed');
@@ -238,13 +245,37 @@ export default function NewDeploymentPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <CardTitle className="text-2xl text-zinc-900 dark:text-zinc-50">Deployment Started</CardTitle>
-              <CardDescription>Your deployment is being processed</CardDescription>
+              <div className="flex items-center justify-center gap-2">
+                <CardTitle className="text-2xl text-zinc-900 dark:text-zinc-50">
+                  {isPreview ? 'Preview Deployment Started' : 'Deployment Started'}
+                </CardTitle>
+                {isPreview && (
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                    Preview
+                  </span>
+                )}
+              </div>
+              <CardDescription>
+                {isPreview ? 'Your preview deployment is being processed' : 'Your deployment is being processed'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {deploymentId && (
                 <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-4 font-mono text-sm text-zinc-700 dark:text-zinc-300">
                   {deploymentId}
+                </div>
+              )}
+              {isPreview && previewUrl && (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Preview URL</div>
+                  <a
+                    href={previewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-purple-600 dark:text-purple-400 hover:underline font-mono text-sm"
+                  >
+                    {previewUrl} →
+                  </a>
                 </div>
               )}
               {deployUrl && (
@@ -445,6 +476,39 @@ export default function NewDeploymentPage() {
                     placeholder="/"
                     className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   />
+                </div>
+              </div>
+
+              {/* Environment */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Environment
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'production' as const, label: 'Production', icon: '🚀', desc: 'Live site' },
+                    { value: 'preview' as const, label: 'Preview', icon: '👁', desc: 'PR/feature review' },
+                    { value: 'development' as const, label: 'Development', icon: '🛠', desc: 'Testing' },
+                  ].map((env) => (
+                    <button
+                      key={env.value}
+                      type="button"
+                      onClick={() => updateForm('environment_slug', env.value)}
+                      className={`px-3 py-2.5 rounded-lg text-sm transition-all border-2 text-left ${
+                        form.environment_slug === env.value
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-300 dark:ring-blue-700'
+                          : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{env.icon}</span>
+                        <div>
+                          <div className="font-medium text-zinc-900 dark:text-zinc-100">{env.label}</div>
+                          <div className="text-xs text-zinc-500 dark:text-zinc-400">{env.desc}</div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             </CardContent>

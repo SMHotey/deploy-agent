@@ -82,6 +82,8 @@ export const projects = pgTable('projects', {
   excludeAuthors: jsonb('exclude_authors').$type<string[]>(),
   triggerBranches: jsonb('trigger_branches').$type<string[]>().default(['main', 'master']),
   previewForPr: boolean('preview_for_pr').default(true),
+  previewDomain: varchar('preview_domain', { length: 255 }),
+  previewEnabled: boolean('preview_enabled').default(false),
   
   // IaC
   generateTerraform: boolean('generate_terraform').default(false),
@@ -135,6 +137,8 @@ export const deployments = pgTable('deployments', {
   commitMessage: text('commit_message'),
   author: varchar('author', { length: 255 }),
   branch: varchar('branch', { length: 100 }),
+  isPreview: boolean('is_preview').default(false).notNull(),
+  prNumber: integer('pr_number'),
   startedAt: timestamp('started_at'),
   readyAt: timestamp('ready_at'),
   buildTime: integer('build_time'),

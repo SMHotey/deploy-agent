@@ -115,6 +115,8 @@ export async function POST(request: NextRequest) {
         deployment_id: result.deploymentId,
         status: pollResult.status,
         url: pollResult.url,
+        preview_url: result.previewUrl,
+        is_preview: result.isPreview,
         logs_url: result.logsUrl,
         message: pollResult.status === 'ready' ? 'Deployment successful' : pollResult.error,
       });
@@ -124,6 +126,8 @@ export async function POST(request: NextRequest) {
       deployment_id: result.deploymentId,
       status: result.status,
       url: result.url,
+      preview_url: result.previewUrl,
+      is_preview: result.isPreview,
       logs_url: result.logsUrl,
       message: result.success ? 'Deployment started' : result.error,
     });

@@ -10,6 +10,8 @@ export interface DeployResult {
   deploymentId?: string;
   url?: string;
   logsUrl?: string;
+  previewUrl?: string;
+  isPreview: boolean;
   status: 'pending' | 'building' | 'ready' | 'error';
   error?: string;
 }
@@ -89,6 +91,9 @@ class VercelPlatform implements PlatformDeployer {
       }
 
       // Step 3: Create deployment
+      const environment = params.environment_slug || 'production';
+      const isPreview = environment === 'preview' || environment === 'development';
+
       const deploymentResult = await withRetry(async () => {
         return vercel.createDeployment({
           repoUrl: repo_url,
@@ -102,6 +107,8 @@ class VercelPlatform implements PlatformDeployer {
           outputDirectory: output_directory,
           env: environment_variables as Record<string, string> | undefined,
           teamId: ctx.teamId,
+          target: environment,
+          isPreview,
         });
       }, { maxRetries: 3, initialDelayMs: 2000 });
 
@@ -112,6 +119,8 @@ class VercelPlatform implements PlatformDeployer {
       const deployment = deploymentResult.data;
       const deploymentId = deployment.uid;
       const url = deployment.url;
+      // For preview deployments, Vercel provides a unique URL per deployment
+      const previewUrl = isPreview ? deployment.url : undefined;
 
       // Step 4: Setup GitHub Actions if requested
       if (setup_github_actions && github && github_token) {
@@ -144,6 +153,8 @@ class VercelPlatform implements PlatformDeployer {
         success: true,
         deploymentId,
         url,
+        previewUrl,
+        isPreview,
         logsUrl: `https://vercel.com/${ctx.teamId || ''}/deployments/${deploymentId}`,
         status: deployment.state === 'READY' ? 'ready' : 'building',
       };
@@ -151,6 +162,7 @@ class VercelPlatform implements PlatformDeployer {
     } catch (error) {
       return {
         success: false,
+        isPreview: false,
         status: 'error',
         error: error instanceof Error ? error.message : 'Deployment failed',
       };
@@ -169,6 +181,7 @@ class VercelPlatform implements PlatformDeployer {
         return {
           success: false,
           deploymentId,
+          isPreview: false,
           status: 'error',
           error: result.error instanceof Error ? result.error.message : 'Deployment check failed',
         };
@@ -177,13 +190,14 @@ class VercelPlatform implements PlatformDeployer {
       const deployment = result.data;
 
       if (deployment.state === 'READY') {
-        return { success: true, deploymentId, url: deployment.url, status: 'ready' };
+        return { success: true, deploymentId, url: deployment.url, isPreview: false, status: 'ready' };
       }
 
       if (deployment.state === 'ERROR') {
         return {
           success: false,
           deploymentId,
+          isPreview: false,
           status: 'error',
           error: deployment.builds?.[0]?.error || 'Deployment failed',
         };
@@ -192,7 +206,7 @@ class VercelPlatform implements PlatformDeployer {
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
-    return { success: false, deploymentId, status: 'error', error: 'Deployment timed out' };
+    return { success: false, deploymentId, isPreview: false, status: 'error', error: 'Deployment timed out' };
   }
 
   async getLogs(deploymentId: string, ctx: DeployContext): Promise<string> {
@@ -239,6 +253,7 @@ class NetlifyPlatform implements PlatformDeployer {
       if (!netlifyToken) {
         return {
           success: false,
+          isPreview: false,
           status: 'error',
           error: 'Netlify token required. Set NETLIFY_TOKEN env var or configure in settings.',
         };
@@ -317,7 +332,14 @@ class NetlifyPlatform implements PlatformDeployer {
       }
 
       // Step 3: Trigger deploy
-      const deployResult = await netlify.createDeploy({ siteId, branch: branch || 'main' });
+      const environment = params.environment_slug || 'production';
+      const isPreview = environment === 'preview' || environment === 'development';
+
+      const deployResult = await netlify.createDeploy({ 
+        siteId, 
+        branch: branch || 'main',
+        isPreview,
+      });
 
       if (!deployResult.success || !deployResult.data) {
         throw deployResult.error || new Error('Deployment failed');
@@ -348,12 +370,15 @@ class NetlifyPlatform implements PlatformDeployer {
         success: true,
         deploymentId: deploy.id,
         url: deploy.deploy_ssl_url || deploy.deploy_url,
+        previewUrl: isPreview ? deploy.deploy_ssl_url || deploy.deploy_url : undefined,
+        isPreview,
         logsUrl: deploy.admin_url,
         status: deploy.state === 'ready' ? 'ready' : deploy.state === 'building' ? 'building' : 'pending',
       };
     } catch (error) {
       return {
         success: false,
+        isPreview: false,
         status: 'error',
         error: error instanceof Error ? error.message : 'Deployment failed',
       };
@@ -363,7 +388,7 @@ class NetlifyPlatform implements PlatformDeployer {
   async pollStatus(deploymentId: string, ctx: DeployContext): Promise<DeployResult> {
     const token = process.env.NETLIFY_TOKEN || ctx.vercelToken;
     if (!token) {
-      return { success: false, deploymentId, status: 'error', error: 'Netlify token required' };
+      return { success: false, deploymentId, isPreview: false, status: 'error', error: 'Netlify token required' };
     }
 
     const netlify = createNetlifyClient(token);
@@ -377,6 +402,7 @@ class NetlifyPlatform implements PlatformDeployer {
         return {
           success: false,
           deploymentId,
+          isPreview: false,
           status: 'error',
           error: result.error?.message || 'Deployment check failed',
         };
@@ -385,13 +411,14 @@ class NetlifyPlatform implements PlatformDeployer {
       const deploy = result.data;
 
       if (deploy.state === 'ready') {
-        return { success: true, deploymentId, url: deploy.deploy_ssl_url, status: 'ready' };
+        return { success: true, deploymentId, url: deploy.deploy_ssl_url, isPreview: false, status: 'ready' };
       }
 
       if (deploy.state === 'error') {
         return {
           success: false,
           deploymentId,
+          isPreview: false,
           status: 'error',
           error: deploy.error_message || 'Deployment failed',
         };
@@ -400,7 +427,7 @@ class NetlifyPlatform implements PlatformDeployer {
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
-    return { success: false, deploymentId, status: 'error', error: 'Deployment timed out' };
+    return { success: false, deploymentId, isPreview: false, status: 'error', error: 'Deployment timed out' };
   }
 
   async getLogs(deploymentId: string, ctx: DeployContext): Promise<string> {
@@ -459,6 +486,7 @@ export class DeployService {
     if (!factory) {
       return {
         success: false,
+        isPreview: false,
         status: 'error',
         error: `Platform '${platformName}' not supported. Available: ${Object.keys(platforms).join(', ')}`,
       };
@@ -474,7 +502,7 @@ export class DeployService {
     if (platform.pollStatus) {
       return platform.pollStatus(deploymentId, this.ctx);
     }
-    return { success: false, deploymentId, status: 'error', error: 'Polling not supported for this platform' };
+    return { success: false, deploymentId, isPreview: false, status: 'error', error: 'Polling not supported for this platform' };
   }
 
   async getDeploymentLogs(deploymentId: string): Promise<string> {

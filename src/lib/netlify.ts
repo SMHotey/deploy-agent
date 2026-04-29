@@ -65,6 +65,7 @@ export interface CreateSiteOptions {
 export interface CreateDeployOptions {
   siteId: string;
   branch?: string;
+  isPreview?: boolean;
 }
 
 export interface NetlifyClient {
@@ -190,6 +191,7 @@ export function createNetlifyClient(token: string): NetlifyClient {
       const body: Record<string, unknown> = {
         branch: options.branch || 'main',
         clear_cache: true,
+        ...(options.isPreview && { draft: true }),
       };
 
       return request<NetlifyDeploy>(`/sites/${options.siteId}/deploys`, { method: 'POST', body });

@@ -65,6 +65,9 @@ export interface CreateDeploymentOptions {
   outputDirectory?: string;
   env?: Record<string, string>;
   teamId?: string;
+  target?: 'production' | 'preview' | 'development';
+  isPreview?: boolean;
+  prNumber?: number;
 }
 
 /**
@@ -188,7 +191,10 @@ export class VercelClient {
       devCommand,
       outputDirectory,
       env, 
-      teamId 
+      teamId,
+      target = 'production',
+      isPreview,
+      prNumber,
     } = options;
     
     // Parse GitHub repo URL
@@ -197,7 +203,8 @@ export class VercelClient {
       throw new Error('Invalid GitHub repository URL');
     }
 
-    const [_, org, repo] = match;
+    const org = match[1];
+    const repo = match[2];
     const gitRef = branch || 'main';
 
     const query = teamId ? `?teamId=${teamId}` : '';
@@ -206,13 +213,15 @@ export class VercelClient {
       'POST',
       `/v1/deployments${query}`,
       {
-        name: projectName,
+        name: target === 'preview' || isPreview ? `${projectName}-pr-${prNumber || 'preview'}` : projectName,
         ref: gitRef,
+        target: isPreview ? 'preview' : target,
         repo: {
           type: 'github',
           repo: `${org}/${repo}`,
           rootDirectory: rootDirectory || '/',
         },
+        ...(prNumber && { gitSource: { type: 'github', ref: gitRef, prNumber } }),
         ...(buildCommand && { buildCommand }),
         ...(installCommand && { installCommand }),
         ...(devCommand && { devCommand }),
