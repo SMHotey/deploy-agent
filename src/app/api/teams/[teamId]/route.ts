@@ -4,6 +4,7 @@ import { teams, teamMembers, users } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { authenticate } from '@/lib/auth';
 import { createLogger, generateRequestId } from '@/lib/logger';
+import { sql } from 'drizzle-orm';
 
 /**
  * GET /api/teams/[teamId]
@@ -182,9 +183,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Only the team owner can delete the team' }, { status: 403 });
     }
 
-    // Delete members first, then team
-    await db.delete(teamMembers).where(eq(teamMembers.teamId, teamId));
-    await db.delete(teams).where(eq(teams.id, teamId));
+    // Delete members and team in a transaction
+    await db.transaction(async (tx) => {
+      await tx.delete(teamMembers).where(eq(teamMembers.teamId, teamId));
+      await tx.delete(teams).where(eq(teams.id, teamId));
+    });
 
     logger.info('Team deleted', { teamId, userId: user.id });
 
