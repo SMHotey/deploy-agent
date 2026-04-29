@@ -68,7 +68,7 @@ export default function Navbar() {
                   Projects
                 </Link>
                 <Link
-                  href="/settings/tokens"
+                  href="/settings"
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
                     isActive('/settings')
                       ? 'border-blue-500 text-zinc-900 dark:text-zinc-100'
@@ -153,7 +153,7 @@ export default function Navbar() {
               Projects
             </Link>
             <Link
-              href="/settings/tokens"
+              href="/settings"
               className={`block px-3 py-2 rounded-md text-base font-medium ${
                 isActive('/settings')
                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
