@@ -51,7 +51,8 @@ export async function POST(
     });
 
     if (!targetUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      // Generic message prevents user enumeration
+      return NextResponse.json({ error: 'Unable to add member' }, { status: 400 });
     }
 
     // Check if already a member
@@ -60,7 +61,8 @@ export async function POST(
     });
 
     if (existingMember) {
-      return NextResponse.json({ error: 'User is already a member of this team' }, { status: 409 });
+      // Same message as "user not found" prevents enumeration
+      return NextResponse.json({ error: 'Unable to add member' }, { status: 400 });
     }
 
     // Prevent role escalation beyond own role
