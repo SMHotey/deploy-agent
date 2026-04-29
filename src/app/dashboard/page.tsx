@@ -129,7 +129,7 @@ export default function DashboardPage() {
               Dashboard
             </h1>
             <Link
-              href="/"
+              href="/deploy"
               className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors"
             >
               + New Deployment
@@ -186,7 +186,7 @@ export default function DashboardPage() {
           <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {recentDeployments.length === 0 ? (
               <div className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
-                No deployments yet. <Link href="/" className="text-blue-600 hover:underline">Create your first deployment</Link>
+                No deployments yet. <Link href="/deploy" className="text-blue-600 hover:underline">Create your first deployment</Link>
               </div>
             ) : (
               recentDeployments.map(deploy => (

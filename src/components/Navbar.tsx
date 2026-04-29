@@ -48,9 +48,9 @@ export default function Navbar() {
             <>
               <div className="hidden sm:flex sm:items-center sm:space-x-8">
                 <Link
-                  href="/"
+                  href="/deploy"
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
-                    isActive('/') && pathname === '/'
+                    isActive('/deploy') && pathname !== '/'
                       ? 'border-blue-500 text-zinc-900 dark:text-zinc-100'
                       : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200'
                   }`}
@@ -131,9 +131,9 @@ export default function Navbar() {
         <div className="sm:hidden border-t border-zinc-200 dark:border-zinc-700">
           <div className="pt-2 pb-3 space-y-1 px-4">
             <Link
-              href="/"
+              href="/deploy"
               className={`block px-3 py-2 rounded-md text-base font-medium ${
-                isActive('/') && pathname === '/'
+                isActive('/deploy') && pathname !== '/'
                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
                   : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800'
               }`}

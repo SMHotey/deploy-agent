@@ -107,7 +107,7 @@ export default function ProjectsPage() {
               </h1>
             </div>
             <Link
-              href="/"
+              href="/deploy"
               className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors"
             >
               + New Deployment
@@ -134,7 +134,7 @@ export default function ProjectsPage() {
               Create your first deployment to get started
             </p>
             <Link
-              href="/"
+              href="/deploy"
               className="px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors inline-block"
             >
               Create Deployment
