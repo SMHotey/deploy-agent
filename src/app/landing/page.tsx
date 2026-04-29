@@ -4,6 +4,8 @@ export const metadata = {
     'One-click deployment from git repositories to Vercel, Netlify, and more. Built for modern teams.',
 };
 
+import Link from 'next/link';
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-card text-muted-foreground">
@@ -29,12 +31,12 @@ export default function LandingPage() {
             One-click deployment from any git repository to Vercel, Netlify, Cloudflare Pages, and more. Beautiful defaults, zero hassle.
           </p>
           <div className="mt-8 flex justify-center gap-4 flex-wrap animate-fade-in-up stagger-3">
-            <a
+            <Link
               href="/"
               className="px-8 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 text-white font-medium hover:from-blue-500 hover:to-violet-500 transition-colors"
             >
               Start Deploying
-            </a>
+            </Link>
             <a href="#features" className="px-8 py-3 rounded-lg border border-white/40 text-white bg-white/10 hover:bg-white/20 transition-colors">
               Learn More
             </a>
@@ -173,7 +175,7 @@ export default function LandingPage() {
             <div className="rounded-xl bg-card p-8 text-center">
               <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-4">Ready to ship faster?</h2>
               <p className="text-lg text-muted-foreground mb-6">Join developers who trust Deploy Agent for their deployment needs.</p>
-              <a href="/" className="inline-block px-8 py-3 rounded-lg bg-white text-blue-600 font-medium hover:bg-blue-50 transition-colors">Get Started for Free</a>
+               <Link href="/" className="inline-block px-8 py-3 rounded-lg bg-white text-blue-600 font-medium hover:bg-blue-50 transition-colors">Get Started for Free</Link>
             </div>
           </div>
         </div>
