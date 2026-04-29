@@ -4,6 +4,7 @@ import { parseDeployParams } from '@/lib/validation';
 import { getRateLimiter, initRateLimiter } from '@/lib/rate-limiter';
 import { authenticate, getUserTokens } from '@/lib/auth';
 import { createLogger, generateRequestId } from '@/lib/logger';
+import { sendDeploymentNotification } from '@/lib/email';
 
 // Initialize rate limiter
 initRateLimiter(process.env.REDIS_URL);
@@ -81,6 +82,17 @@ export async function POST(request: NextRequest) {
 
     // Execute deployment
     const result = await deployService.deploy(params);
+
+    // Send email notification if user email is available
+    if (user.email) {
+      sendDeploymentNotification(
+        user.email,
+        result.deploymentId || 'unknown',
+        params.project_name || 'Unknown Project',
+        result.status === 'ready' ? 'READY' : 'ERROR',
+        result.url
+      ).catch(err => logger.error('Failed to send email notification', { error: err }));
+    }
 
     // If wait_for_completion is true, poll for status
     if (params.wait_for_completion && result.deploymentId) {

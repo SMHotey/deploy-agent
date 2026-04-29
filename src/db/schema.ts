@@ -152,6 +152,25 @@ export const environmentVariables = pgTable('environment_variables', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Teams table
+export const teams = pgTable('teams', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  ownerId: integer('owner_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Team members table
+export const teamMembers = pgTable('team_members', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').notNull().references(() => teams.id),
+  userId: integer('user_id').notNull().references(() => users.id),
+  role: varchar('role', { length: 50 }).default('member').notNull(), // 'owner', 'admin', 'member', 'viewer'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Audit logs
 export const auditLogs = pgTable('audit_logs', {
   id: serial('id').primaryKey(),
@@ -167,10 +186,22 @@ export const auditLogs = pgTable('audit_logs', {
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   supabaseConfigs: many(supabaseConfig),
+  owndTeams: many(teams, { relationName: 'teamOwner' }),
+  teamMemberships: many(teamMembers),
 }));
 
 export const supabaseConfigRelations = relations(supabaseConfig, ({ one }) => ({
   user: one(users, { fields: [supabaseConfig.userId], references: [users.id] }),
+}));
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  owner: one(users, { fields: [teams.ownerId], references: [users.id], relationName: 'teamOwner' }),
+  members: many(teamMembers),
+}));
+
+export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
+  team: one(teams, { fields: [teamMembers.teamId], references: [teams.id] }),
+  user: one(users, { fields: [teamMembers.userId], references: [users.id] }),
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -192,14 +223,22 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, { fields: [auditLogs.userId], references: [users.id] }),
 }));
 
+// Usage tracking table
+export const usageRecords = pgTable('usage_records', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id),
+  teamId: integer('team_id').references(() => teams.id),
+  action: varchar('action', { length: 100 }).notNull(), // 'deployment', 'storage', 'api_call', etc.
+  quantity: integer('quantity').default(1).notNull(),
+  metadata: jsonb('metadata'), // Additional context (project_id, deployment_id, etc.)
+  recordedAt: timestamp('recorded_at').defaultNow().notNull(),
+});
+
+export const usageRecordsRelations = relations(usageRecords, ({ one }) => ({
+  user: one(users, { fields: [usageRecords.userId], references: [users.id] }),
+  team: one(teams, { fields: [usageRecords.teamId], references: [teams.id] }),
+}));
+
 // Type exports
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-export type Project = typeof projects.$inferSelect;
-export type NewProject = typeof projects.$inferInsert;
-export type Deployment = typeof deployments.$inferSelect;
-export type NewDeployment = typeof deployments.$inferInsert;
-export type EnvironmentVariable = typeof environmentVariables.$inferSelect;
-export type NewEnvironmentVariable = typeof environmentVariables.$inferInsert;
-export type AuditLog = typeof auditLogs.$inferSelect;
-export type NewAuditLog = typeof auditLogs.$inferInsert;
+export type UsageRecord = typeof usageRecords.$inferSelect;
+export type NewUsageRecord = typeof usageRecords.$inferInsert;
