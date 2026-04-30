@@ -280,6 +280,11 @@ export async function authenticateWithSupabase(
  * Auth middleware for API routes
  */
 export async function authenticate(request: Request): Promise<AuthUser | null> {
+  // TEMP: Disable auth for testing if flag is set
+  if (process.env.DISABLE_AUTH === 'true') {
+    return { id: 1, email: 'test@test.com', name: 'Test User', isAdmin: true };
+  }
+
   const authHeader = request.headers.get('authorization');
   
   if (!authHeader?.startsWith('Bearer ')) {
