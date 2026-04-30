@@ -4,7 +4,7 @@ export const metadata = {
     'One-click deployment from git repositories to Vercel, Netlify, and more. Built for modern teams.',
 };
 
-import Link from 'next/link';
+import Link from 'next/link'
 import Navbar from '@/components/Navbar';
 import { HeroIllustration } from '@/components/graphics/HeroIllustration';
 import { GridPattern, FloatingParticles, WavePattern } from '@/components/graphics/BackgroundPatterns';
@@ -16,8 +16,12 @@ import {
   IconMultiPlatform,
   IconAnalytics,
 } from '@/components/graphics/FeatureIcons';
+import { useTranslations } from 'next-intl';
 
 export default function LandingPage() {
+  const t = useTranslations('landing');
+  const commonT = useTranslations('common');
+
   return (
     <div className="min-h-screen bg-card text-muted-foreground">
       <Navbar />
@@ -39,10 +43,10 @@ export default function LandingPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-5xl md:text-6xl font-extrabold text-white animate-fade-in-up stagger-1">
-            Ship code <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-300 to-yellow-300">Faster</span>
+            {t('title')}
           </h1>
           <p className="mt-6 text-xl text-white/90 max-w-2xl mx-auto animate-fade-in-up stagger-2">
-            One-click deployment from any git repository to Vercel, Netlify, Cloudflare Pages, and more. Beautiful defaults, zero hassle.
+            {t('subtitle')}
           </p>
           <div className="mt-8 flex justify-center gap-4 flex-wrap animate-fade-in-up stagger-3">
             <Link

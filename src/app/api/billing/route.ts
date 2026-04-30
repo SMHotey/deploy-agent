@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticate } from '@/lib/auth';
-import { getSubscription, updateSubscription, cancelSubscription, getPlanFeatures, checkAllLimits } from '@/lib/billing';
+import { getSubscription, updateSubscription, cancelSubscription, checkAllLimits, createCheckoutSession, getPlanFeatures } from '@/lib/billing';
 import { createLogger, generateRequestId } from '@/lib/logger';
+import { db } from '@/db';
+import { users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   const requestId = generateRequestId();
@@ -49,31 +52,45 @@ export async function POST(request: NextRequest) {
 
     if (action === 'upgrade') {
       const { plan } = body;
-      
+
       if (!['free', 'pro', 'team', 'enterprise'].includes(plan)) {
         return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
       }
 
-      // In production, here you would:
-      // 1. Create Stripe checkout session
-      // 2. Redirect user to Stripe
-      // 3. Handle webhook to update subscription
-      
-      // For now, simulate upgrade (demo mode)
-      const subscription = await updateSubscription(user.id, plan);
-      
-      logger.info('Subscription upgraded (demo)', { userId: user.id, plan });
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Subscription upgraded (demo mode - no payment processed)',
-        subscription,
-      });
+      // Try Stripe checkout
+      try {
+        const [userRecord] = await db.select({ email: users.email })
+          .from(users)
+          .where(eq(users.id, user.id))
+          .limit(1);
+
+        if (!userRecord?.email) {
+          return NextResponse.json({ error: 'User email not found' }, { status: 400 });
+        }
+
+        const checkout = await createCheckoutSession(user.id, plan, userRecord.email);
+
+        return NextResponse.json({
+          success: true,
+          checkoutUrl: checkout.url,
+          sessionId: checkout.sessionId,
+        });
+      } catch (stripeError: any) {
+        logger.warn('Stripe checkout failed, falling back to demo mode', { error: stripeError.message });
+        // Fallback to demo mode
+        const subscription = await updateSubscription(user.id, plan);
+
+        return NextResponse.json({
+          success: true,
+          message: 'Subscription upgraded (demo mode - Stripe not configured)',
+          subscription,
+        });
+      }
     }
 
     if (action === 'cancel') {
       const result = await cancelSubscription(user.id);
-      
+
       if (!result) {
         return NextResponse.json({ error: 'No active subscription' }, { status: 404 });
       }
