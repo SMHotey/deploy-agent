@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { parseGitHubWebhook, parseDeployParams } from '@/lib/validation';
 import { db } from '@/db';
-import { projects, deployments, auditLogs } from '@/db/schema';
+import { projects, deployments, auditLogs, webhookEvents } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { createDeployService } from '@/lib/deploy';
 import { createLogger, generateRequestId } from '@/lib/logger';
@@ -24,27 +24,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const githubEvent = request.headers.get('x-github-event') || '';
+    const signature = request.headers.get('x-hub-signature-256');
 
-    // Handle ping event
-    if (githubEvent === 'ping') {
-      logger.info('GitHub webhook ping received');
-      return NextResponse.json({ message: 'pong' });
-    }
-
-    if (githubEvent !== 'push') {
-      logger.info('Ignoring non-push GitHub event', { event: githubEvent });
-      return NextResponse.json({ message: 'ignored' }, { status: 200 });
-    }
+    // Store raw body for signature verification and event storage
+    const rawBody = await request.text();
 
     // Verify signature if secret is configured
     if (GITHUB_WEBHOOK_SECRET) {
-      const signature = request.headers.get('x-hub-signature-256');
       if (!signature) {
         logger.warn('GitHub webhook signature missing');
         return NextResponse.json({ error: 'Signature required' }, { status: 401 });
       }
 
-      const rawBody = await request.text();
       const expectedSignature = createHmac('sha256', GITHUB_WEBHOOK_SECRET)
         .update(rawBody)
         .digest('hex');
@@ -55,15 +46,55 @@ export async function POST(request: NextRequest) {
         logger.warn('GitHub webhook signature verification failed');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
-
-      // Re-parse since we consumed the body
-      const body = JSON.parse(rawBody);
-      return handlePushEvent(body, logger, requestId);
     }
 
-    // No secret configured — parse body normally
-    const body = await request.json();
-    return handlePushEvent(body, logger, requestId);
+    const body = JSON.parse(rawBody);
+
+    // Store webhook event for replay/audit
+    let webhookEventId: number | undefined;
+    try {
+      const [event] = await db.insert(webhookEvents).values({
+        source: 'github',
+        eventType: githubEvent,
+        payload: body,
+        signature: signature || undefined,
+        status: 'pending',
+      }).returning({ id: webhookEvents.id });
+      webhookEventId = event?.id;
+    } catch (e) {
+      logger.warn('Failed to store webhook event', { error: e });
+    }
+
+    // Handle ping event
+    if (githubEvent === 'ping') {
+      logger.info('GitHub webhook ping received');
+      if (webhookEventId) {
+        await db.update(webhookEvents).set({ status: 'processed', processedAt: new Date() }).where(eq(webhookEvents.id, webhookEventId));
+      }
+      return NextResponse.json({ message: 'pong' });
+    }
+
+    // Handle pull_request events (for PR preview deployments)
+    if (githubEvent === 'pull_request') {
+      return handlePullRequestEvent(body, logger, requestId, webhookEventId);
+    }
+
+    if (githubEvent !== 'push') {
+      logger.info('Ignoring non-push GitHub event', { event: githubEvent });
+      if (webhookEventId) {
+        await db.update(webhookEvents).set({ status: 'ignored', processedAt: new Date() }).where(eq(webhookEvents.id, webhookEventId));
+      }
+      return NextResponse.json({ message: 'ignored' }, { status: 200 });
+    }
+
+    const result = await handlePushEvent(body, logger, requestId);
+    
+    if (webhookEventId) {
+      await db.update(webhookEvents).set({ status: 'processed', processedAt: new Date() }).where(eq(webhookEvents.id, webhookEventId));
+    }
+
+    return result;
+
   } catch (error) {
     logger.error('GitHub webhook error', { error });
     return NextResponse.json(
@@ -86,7 +117,7 @@ async function handlePushEvent(
   }
 
   const { ref, repository, after } = parsed.data;
-  const branch = ref.replace('refs/heads/', '');
+  const branch = (ref || '').replace('refs/heads/', '');
   const commitSha = after || 'unknown';
 
   logger.info('GitHub push event received', {
@@ -182,8 +213,152 @@ async function handlePushEvent(
     failed,
   });
 
+    return NextResponse.json({
+      message: `Triggered ${successful} deployment(s)`,
+      successful,
+      failed,
+    });
+}
+
+
+async function handlePullRequestEvent(
+  body: unknown,
+  logger: ReturnType<typeof createLogger>,
+  requestId: string,
+  webhookEventId?: number
+): Promise<NextResponse> {
+  const parsed = parseGitHubWebhook(body);
+
+  if (!parsed.success || !parsed.data) {
+    logger.warn('Invalid GitHub pull_request payload', { error: parsed.error?.issues });
+    if (webhookEventId) {
+      await db.update(webhookEvents).set({ status: 'failed', errorMessage: 'Invalid payload', processedAt: new Date() }).where(eq(webhookEvents.id, webhookEventId));
+    }
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  }
+
+  const { action, pull_request, repository } = parsed.data as any;
+  
+  // Only handle opened and synchronize (updated) PRs
+  if (action !== 'opened' && action !== 'synchronize') {
+    logger.info('Ignoring PR action', { action });
+    if (webhookEventId) {
+      await db.update(webhookEvents).set({ status: 'ignored', processedAt: new Date() }).where(eq(webhookEvents.id, webhookEventId));
+    }
+    return NextResponse.json({ message: 'ignored' });
+  }
+
+  const branch = pull_request.head.ref;
+  const commitSha = pull_request.head.sha;
+  const prNumber = pull_request.number;
+
+  logger.info('GitHub pull_request event received', {
+    repo: repository.full_name,
+    branch,
+    prNumber,
+    action,
+  });
+
+  // Find matching projects with preview enabled
+  const matchingProjects = await db.query.projects.findMany({
+    where: (projects, { eq, and, like }) =>
+      and(
+        like(projects.repoUrl, `%${repository.full_name}%`),
+        eq(projects.previewEnabled, true),
+      ),
+  });
+
+  if (matchingProjects.length === 0) {
+    logger.info('No matching projects with preview enabled', {
+      repo: repository.full_name,
+    });
+    if (webhookEventId) {
+      await db.update(webhookEvents).set({ status: 'ignored', processedAt: new Date() }).where(eq(webhookEvents.id, webhookEventId));
+    }
+    return NextResponse.json({ message: 'No matching projects with preview enabled' });
+  }
+
+  logger.info('Found matching projects for PR preview', { count: matchingProjects.length, prNumber });
+
+  const maxParallel = Math.min(parseInt(process.env.PARALLEL_DEPLOYS || '5'), 5);
+  const projectsToDeploy = matchingProjects.slice(0, maxParallel);
+
+  const deploymentResults = await Promise.allSettled(
+    projectsToDeploy.map(async (project) => {
+      try {
+        const deployService = createDeployService({
+          vercelToken: process.env.VERCEL_TOKEN || '',
+          githubToken: process.env.GITHUB_TOKEN || undefined,
+          encryptionKey: process.env.ENCRYPTION_KEY!,
+        });
+
+        const params = parseDeployParams({
+          repo_url: project.repoUrl,
+          project_name: project.name,
+          target_platform: project.platform,
+          branch: branch || 'main',
+          root_directory: project.rootDirectory || '/',
+          build_override: project.buildOverride || undefined,
+          output_directory: project.outputDirectory || undefined,
+          environment_variables: {},
+          wait_for_completion: false,
+          environment_slug: 'preview',
+          preview_for_pr: true,
+        });
+
+        if (!params.success || !params.data) {
+          throw new Error('Invalid deploy parameters');
+        }
+
+        const result = await deployService.deploy(params.data);
+
+        // Create audit log entry
+        if (project.id) {
+          await db.insert(auditLogs).values({
+            projectId: project.id,
+            action: 'webhook_pr_preview_triggered',
+            details: {
+              source: 'github_webhook',
+              prNumber,
+              branch,
+              commitSha,
+              repo: repository.full_name,
+            },
+            ipAddress: 'webhook',
+          });
+        }
+
+        return result;
+      } catch (err) {
+        logger.error('PR preview deployment failed for project', {
+          projectId: project.id,
+          prNumber,
+          error: err instanceof Error ? err.message : 'unknown',
+        });
+        throw err;
+      }
+    })
+  );
+
+  const successful = deploymentResults.filter(
+    (r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled'
+  ).length;
+  const failed = deploymentResults.length - successful;
+
+  logger.info('PR preview deployment results', {
+    prNumber,
+    triggered: projectsToDeploy.length,
+    successful,
+    failed,
+  });
+
+  if (webhookEventId) {
+    await db.update(webhookEvents).set({ status: 'processed', processedAt: new Date() }).where(eq(webhookEvents.id, webhookEventId));
+  }
+
   return NextResponse.json({
-    message: `Triggered ${successful} deployment(s)`,
+    message: `Triggered ${successful} PR preview deployment(s)`,
+    prNumber,
     successful,
     failed,
   });

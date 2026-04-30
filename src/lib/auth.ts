@@ -5,11 +5,13 @@ import { users, supabaseConfig } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { encrypt, decrypt } from './encryption';
 import { createSupabaseClient, getSupabaseAdminClient } from './supabase';
+import { NextResponse } from 'next/server';
 
 export interface AuthUser {
   id: number;
   email: string;
   name: string;
+  isAdmin: boolean;
 }
 
 export interface TokenPair {
@@ -40,7 +42,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 export function generateAccessToken(user: AuthUser): string {
   const secret = (process.env.JWT_SECRET || process.env.ENCRYPTION_KEY || 'change-me-jwt-secret') as string;
   return jwt.sign(
-    { sub: user.id, email: user.email, name: user.name } as object,
+    { sub: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin } as object,
     secret,
     { expiresIn: JWT_EXPIRES_IN } as any
   );
@@ -56,7 +58,8 @@ export function verifyToken(token: string): AuthUser | null {
     return { 
       id: decoded.sub, 
       email: decoded.email || '', 
-      name: decoded.name || '' 
+      name: decoded.name || '',
+      isAdmin: decoded.isAdmin || false,
     };
   } catch {
     return null;
@@ -67,7 +70,7 @@ export function verifyToken(token: string): AuthUser | null {
  * Get user by ID
  */
 export async function getUserById(id: number): Promise<AuthUser | null> {
-  const [user] = await db.select({ id: users.id, email: users.email, name: users.name })
+  const [user] = await db.select({ id: users.id, email: users.email, name: users.name, isAdmin: users.isAdmin })
     .from(users)
     .where(eq(users.id, id))
     .limit(1);
@@ -78,6 +81,7 @@ export async function getUserById(id: number): Promise<AuthUser | null> {
     id: user.id,
     email: user.email,
     name: user.name || '',
+    isAdmin: user.isAdmin || false,
   };
 }
 
@@ -85,12 +89,20 @@ export async function getUserById(id: number): Promise<AuthUser | null> {
  * Get user by email
  */
 export async function getUserByEmail(email: string): Promise<(AuthUser & { passwordHash: string }) | null> {
-  const [user] = await db.select()
+  const [user] = await db.select({ id: users.id, email: users.email, name: users.name, isAdmin: users.isAdmin, passwordHash: users.passwordHash })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
-  
-  return (user as any) || null;
+
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name || '',
+    isAdmin: user.isAdmin || false,
+    passwordHash: user.passwordHash,
+  };
 }
 
 /**
@@ -276,4 +288,18 @@ export async function authenticate(request: Request): Promise<AuthUser | null> {
   
   const token = authHeader.slice(7);
   return verifyToken(token);
+}
+
+/**
+ * Require admin user - throws/returns error if not admin
+ */
+export async function requireAdmin(request: Request): Promise<AuthUser | NextResponse> {
+  const user = await authenticate(request);
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  if (!user.isAdmin) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
+  return user;
 }

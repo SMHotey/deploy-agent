@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         id: fullUser.id,
         email: fullUser.email,
         name: fullUser.name,
+        isAdmin: fullUser.isAdmin,
       },
     });
 

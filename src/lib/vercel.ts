@@ -209,25 +209,27 @@ export class VercelClient {
 
     const query = teamId ? `?teamId=${teamId}` : '';
     
+    const deploymentBody: any = {
+      name: target === 'preview' || isPreview ? `${projectName}-pr-${prNumber || 'preview'}` : projectName,
+      ref: gitRef,
+      target: isPreview ? 'preview' : target,
+      repo: {
+        type: 'github',
+        repo: `${org}/${repo}`,
+        rootDirectory: rootDirectory || '/',
+      },
+      ...(prNumber && { gitSource: { type: 'github', ref: gitRef, prNumber } }),
+      ...(buildCommand && { buildCommand }),
+      ...(installCommand && { installCommand }),
+      ...(devCommand && { devCommand }),
+      ...(outputDirectory && { outputDirectory }),
+      ...(env && { env: Object.entries(env).map(([key, value]) => ({ key, value })) }),
+    };
+    
     const deployment = await this.request<{ deployment: VercelDeployment }>(
       'POST',
       `/v1/deployments${query}`,
-      {
-        name: target === 'preview' || isPreview ? `${projectName}-pr-${prNumber || 'preview'}` : projectName,
-        ref: gitRef,
-        target: isPreview ? 'preview' : target,
-        repo: {
-          type: 'github',
-          repo: `${org}/${repo}`,
-          rootDirectory: rootDirectory || '/',
-        },
-        ...(prNumber && { gitSource: { type: 'github', ref: gitRef, prNumber } }),
-        ...(buildCommand && { buildCommand }),
-        ...(installCommand && { installCommand }),
-        ...(devCommand && { devCommand }),
-        ...(outputDirectory && { outputDirectory }),
-        ...(env && { env: Object.entries(env).map(([key, value]) => ({ key, value })) }),
-      }
+      deploymentBody
     );
 
     return deployment.deployment;

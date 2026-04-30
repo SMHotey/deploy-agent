@@ -36,6 +36,7 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   name: varchar('name', { length: 255 }),
+  isAdmin: boolean('is_admin').default(false).notNull(),
   githubToken: text('github_token'),
   vercelToken: varchar('vercel_token', { length: 255 }),
   netlifyToken: varchar('netlify_token', { length: 255 }),
@@ -186,6 +187,25 @@ export const auditLogs = pgTable('audit_logs', {
   ipAddress: varchar('ip_address', { length: 45 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Webhook events table (for replay/retry)
+export const webhookEvents = pgTable('webhook_events', {
+  id: serial('id').primaryKey(),
+  source: varchar('source', { length: 50 }).notNull(), // 'github', 'vercel'
+  eventType: varchar('event_type', { length: 100 }).notNull(), // 'push', 'pull_request', 'deployment_status'
+  payload: jsonb('payload').notNull(),
+  signature: varchar('signature', { length: 255 }),
+  status: varchar('status', { length: 20 }).default('pending').notNull(), // 'pending', 'processed', 'failed'
+  errorMessage: text('error_message'),
+  retryCount: integer('retry_count').default(0).notNull(),
+  lastRetryAt: timestamp('last_retry_at'),
+  processedAt: timestamp('processed_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const webhookEventsRelations = relations(webhookEvents, ({ one }) => ({
+  // No direct FK relations needed - webhook events are standalone
+}));
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({

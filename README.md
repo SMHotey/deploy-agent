@@ -182,3 +182,126 @@ MIT
 - User retention (Week 1 → Week 4)
 - Upgrade conversion rate (Free → Pro/Team)
 - Support ticket volume (target: <5% of user base)
+
+---
+
+## SVG Graphics System (Added 2026-04-29)
+
+### Architecture
+
+All graphics are **inline SVG components** — no external image files, no npm dependencies for icons. Everything is pure SVG + CSS animations, built directly into the codebase.
+
+```
+src/components/graphics/
+├── HeroIllustration.tsx    # Animated hero scene: code → servers → rocket
+├── FeatureIcons.tsx        # 6 unique feature icons with gradients
+├── BackgroundPatterns.tsx  # Grid, dots, waves, floating particles
+└── index.ts                # Barrel exports
+```
+
+### Hero Illustration (`HeroIllustration.tsx`)
+**800×400 SVG**, pure CSS animations, no external dependencies.
+
+| Animation | Effect | Duration |
+|-----------|--------|----------|
+| `float-slow` | Gentle Y-axis floating (code editor, servers) | 4s ease-in-out |
+| `float-fast` | Faster floating (rocket) | 2.5s ease-in-out |
+| `rocket-launch` | Rocket rocking with rotation | 3s ease-in-out |
+| `flame-flicker` | Flame scaling + opacity | 0.3s ease-in-out |
+| `pulse-glow` | Server LED indicators glow | 2s ease-in-out |
+| `dash-move` | Data flow lines (dotted, animated) | 1s linear |
+| `particle-drift` | Particles rising + fading | 1.8–2.5s ease-out |
+
+**Scene composition:**
+- **Left**: Code editor window with syntax-highlighted lines (`deploy.ts`)
+- **Center**: Two server racks with pulsing LED indicators
+- **Right**: Rocket with gradient body, window, fins, and animated flame
+- **Connections**: Dotted SVG paths with `stroke-dashoffset` animation
+- **Background**: Grid pattern, floating ambient particles
+- **Success badge**: Green checkmark circle (floating)
+
+### Feature Icons (`FeatureIcons.tsx`)
+6 hand-crafted SVG icons, each 48×48 with circular background and gradient fills:
+
+| Icon | Gradient | Visual Elements |
+|------|----------|-----------------|
+| `IconInstantDeploys` | `#60a5fa → #818cf8` | Lightning bolt + deploy arrow |
+| `IconSecureByDefault` | `#34d399 → #10b981` | Shield with lock + keyhole |
+| `IconRealtimeLogs` | `#fbbf24 → #f97316` | Terminal window + streaming dots |
+| `IconHundredParams` | `#c084fc → #a855f7` | Three horizontal sliders with knobs |
+| `IconMultiPlatform` | `#38bdf8 → #3b82f6` | Central hub + 4 connected nodes |
+| `IconAnalytics` | `#22c55e → #16a34a` | Bar chart + trend line with dot |
+
+**Usage:**
+```tsx
+import { IconInstantDeploys } from '@/components/graphics/FeatureIcons';
+
+<IconInstantDeploys /> // renders 40×40 SVG
+```
+
+### Background Patterns (`BackgroundPatterns.tsx`)
+
+| Component | Purpose | Props |
+|-----------|---------|-------|
+| `GridPattern` | Subtle grid overlay | None |
+| `DotPattern` | Dot matrix texture | None |
+| `WavePattern` | Section divider wave | `className?` for sizing |
+| `FloatingParticles` | Ambient floating dots | `count` (default: 20) |
+
+**Usage:**
+```tsx
+import { GridPattern, FloatingParticles, WavePattern } from '@/components/graphics/BackgroundPatterns';
+
+<section className="relative overflow-hidden">
+  <GridPattern />
+  <FloatingParticles count={15} />
+  <WavePattern className="h-24" />
+  {/* content */}
+</section>
+```
+
+### OG Images (`next/og`)
+
+| File | Route | Purpose |
+|------|-------|---------|
+| `src/app/opengraph-image.tsx` | `/` | Root page (auth) social share |
+| `src/app/landing/opengraph-image.tsx` | `/landing` | Landing page social share |
+
+Both generate **1200×630 PNG** images via `ImageResponse` (edge runtime). Features:
+- Dark gradient background (`#0f172a → #1e293b`)
+- Grid overlay pattern
+- 3 colored glow orbs (blue, violet, green)
+- Shield logo SVG with gradient
+- Gradient title text ("Ship Code Faster")
+- Feature badges at bottom
+- Gradient bottom bar
+
+**Usage in social sharing:**
+```html
+<meta property="og:image" content="https://your-domain.com/landing/opengraph-image" />
+```
+
+### Landing Page Integration
+
+The landing page (`src/app/landing/page.tsx`) uses all graphics components:
+
+```tsx
+import { HeroIllustration } from '@/components/graphics/HeroIllustration';
+import { GridPattern, FloatingParticles, WavePattern } from '@/components/graphics/BackgroundPatterns';
+import { IconInstantDeploys, IconSecureByDefault, /* ... */ } from '@/components/graphics/FeatureIcons';
+```
+
+**Changes from previous version:**
+- Heroicons → `FeatureIcons` components (6 unique icons)
+- Added `HeroIllustration` below CTA buttons
+- Added `GridPattern` + `FloatingParticles` to hero background
+- Added `WavePattern` divider between hero and features
+- Feature cards now have `hover:border-blue-500/30` + `group-hover:scale-110` icon animation
+- Platform cards have gradient overlay on hover
+- Footer logo now has gradient background (`from-blue-500 to-violet-500`)
+
+### Build Status
+- ✅ TypeScript: 0 errors
+- ✅ Next.js build: 32 pages, 0 errors
+- ✅ OG images: edge runtime, static generation compatible
+- ✅ Zero external dependencies added

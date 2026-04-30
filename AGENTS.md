@@ -52,19 +52,70 @@ Key differences from Next.js 14/15 that **will** bite you:
 ```
 src/
   app/
-    page.tsx              # Main UI (client component, 'use client')
+    page.tsx              # Auth page (login/register) with gradient hero
     layout.tsx            # Root layout (server component, metadata, fonts)
-    globals.css           # Tailwind v4 styles
+    globals.css           # Tailwind v4 styles + 40+ CSS vars + 8 keyframe animations
+    opengraph-image.tsx   # OG image for root page (1200x630, edge runtime)
+    landing/
+      page.tsx            # Landing page with SVG graphics system
+      opengraph-image.tsx # OG image for landing page
     api/
       auth/
         login/route.ts    # User login (JWT)
         register/route.ts # User registration (JWT)
         me/route.ts       # Get current user (JWT)
+        tokens/route.ts   # User token management
       deploy/route.ts     # POST create deployment, GET status/logs
+      deploy/[id]/
+        stream/route.ts   # SSE streaming for deployment logs
       health/route.ts     # Health check (DB + Redis ping)
       projects/route.ts   # GET list, POST create, DELETE projects
+      projects/[projectId]/
+        env-vars/route.ts     # GET/POST env vars (AES-256-GCM encrypted)
+        env-vars/[envVarId]/route.ts # GET/PUT/DELETE single env var
+      teams/route.ts          # GET/POST teams
+      teams/[teamId]/route.ts # GET/PUT/DELETE team
+      teams/[teamId]/
+        members/route.ts      # GET/POST team members
+        members/[userId]/route.ts # PUT/DELETE member role
+      webhooks/
+        github/route.ts   # GitHub push webhook (auto-deploy)
+        vercel/route.ts   # Vercel deployment status webhook (idempotent)
+      billing/route.ts    # Plan management + usage tracking
+      analytics/route.ts  # Deployment analytics
+      instructions/route.ts # API documentation
+      config/supabase/route.ts # Supabase config
+    dashboard/page.tsx    # User dashboard
+    deploy/page.tsx       # Deploy form
+    deploy/[id]/page.tsx  # Deployment status viewer
+    projects/page.tsx     # Projects list + cards
+    projects/[projectId]/
+      env/page.tsx        # Environment variables management UI
+    teams/page.tsx        # Teams management
+    billing/page.tsx      # Billing dashboard (demo mode)
+    analytics/page.tsx    # Analytics dashboard
+    audit-logs/page.tsx   # Audit log viewer (paginated, filtered)
+    settings/page.tsx     # Settings page
+    settings/supabase/page.tsx  # Supabase settings
+    settings/tokens/page.tsx    # Token management
+    instructions/page.tsx # API docs viewer
+    providers.tsx         # ThemeProvider + AuthProvider + ToastProvider
+  components/
+    graphics/
+      HeroIllustration.tsx   # Animated SVG hero scene (code→servers→rocket)
+      FeatureIcons.tsx       # 6 unique feature icons with gradients
+      BackgroundPatterns.tsx # Grid, dots, waves, floating particles
+      index.ts               # Barrel exports
+    ui/
+      Input.tsx              # Form input with label, error, hint (ReactNode)
+      Button.tsx             # Button with loading spinner
+      Toast.tsx              # Toast notification system
+      Skeleton.tsx           # Shimmer loading skeleton (3 variants)
+      Navbar.tsx             # Top navigation with links + theme toggle
   lib/
     auth.ts               # JWT auth, user management, encrypted token storage
+    auth-context.tsx      # React context: useAuth() with getToken()
+    theme-context.tsx     # React context: useTheme() with toggleTheme()
     deploy.ts             # DeployService — core deployment orchestration
     vercel.ts             # Vercel API client (with 30s timeouts)
     github.ts             # GitHub API client (with 30s timeouts)
@@ -75,22 +126,23 @@ src/
     logger.ts             # Structured logging with request IDs
     shutdown.ts           # Graceful shutdown handlers (SIGTERM/SIGINT)
     config.ts             # Startup validation for env vars
+    idempotency.ts        # Idempotency store (Redis + in-memory, 24h TTL)
   db/
-    schema.ts             # Drizzle schema: users, projects, deployments, env_vars, audit_logs
+    schema.ts             # Drizzle schema: 5 tables
     index.ts              # DB connection pool (pg + drizzle-orm/node-postgres)
   __tests__/
-    api.test.ts           # Vitest integration tests (hit live API at DEPLOY_AGENT_URL)
+    api.test.ts           # Vitest integration tests (hit live API)
   lib/
     __tests__/
       encryption.test.ts  # Encryption unit tests (4 tests)
       retry.test.ts       # Retry logic unit tests (4 tests)
       validation.test.ts  # Validation unit tests (7 tests)
-      auth.test.ts       # Auth unit tests (7 tests)
+      auth.test.ts        # Auth unit tests (7 tests)
 cli.ts                    # Commander CLI (excluded from tsconfig)
-drizzle.config.ts         # Drizzle Kit config (PostgreSQL, schema at src/db/schema.ts)
+drizzle.config.ts         # Drizzle Kit config (PostgreSQL)
 vitest.config.ts          # Vitest configuration (aliases: @/ → ./src/)
-proxy.ts                 # Security headers + CORS (Next.js 16 expects this at root)
-README_RU.md             # Russian user manual
+proxy.ts                  # Security headers + CORS (Next.js 16)
+README_RU.md              # Russian user manual
 ```
 
 Path alias: `@/*` maps to `./src/*` (tsconfig + vitest config).
@@ -219,3 +271,82 @@ npm run db:generate
 
 # Migrations location: drizzle/*.sql (generated by drizzle-kit)
 ```
+
+## SVG Graphics System (Added 2026-04-29)
+
+### Architecture
+
+All graphics are **inline SVG components** — no external image files, no npm dependencies. Pure SVG + CSS animations.
+
+```
+src/components/graphics/
+├── HeroIllustration.tsx    # Animated hero scene: code → servers → rocket (800x400)
+├── FeatureIcons.tsx        # 6 unique feature icons with gradients (48x48 each)
+├── BackgroundPatterns.tsx  # Grid, dots, waves, floating particles
+└── index.ts                # Barrel exports
+```
+
+### Hero Illustration
+- **Animations**: `float-slow` (4s), `float-fast` (2.5s), `rocket-launch` (3s), `flame-flicker` (0.3s), `pulse-glow` (2s), `dash-move` (1s), `particle-drift` (1.8-2.5s)
+- **Scene**: Code editor (left) → Servers (center) → Rocket (right) with animated data flow lines
+- **'use client'**: Required for `<style>` tag with keyframes
+
+### Feature Icons (6 total)
+| Component | Color | Elements |
+|-----------|-------|----------|
+| `IconInstantDeploys` | blue→violet | Lightning bolt + deploy arrow |
+| `IconSecureByDefault` | green | Shield + lock + keyhole |
+| `IconRealtimeLogs` | amber→orange | Terminal window + streaming dots |
+| `IconHundredParams` | purple | Three horizontal sliders |
+| `IconMultiPlatform` | sky blue | Central hub + 4 connected nodes |
+| `IconAnalytics` | green | Bar chart + trend line |
+
+### Background Patterns
+| Component | Props | Purpose |
+|-----------|-------|---------|
+| `GridPattern` | none | Subtle grid overlay |
+| `DotPattern` | none | Dot matrix texture |
+| `WavePattern` | `className?` | Section divider wave |
+| `FloatingParticles` | `count` (default: 20) | Ambient floating dots |
+
+### OG Images (next/og)
+- `src/app/opengraph-image.tsx` → Root `/` page (1200x630 PNG, edge runtime)
+- `src/app/landing/opengraph-image.tsx` → `/landing` page (1200x630 PNG, edge runtime)
+- Both: dark gradient, grid overlay, 3 glow orbs, shield logo, gradient text, feature badges
+
+### Landing Page Integration
+- Hero: `GridPattern` + `FloatingParticles` + `HeroIllustration` + `WavePattern`
+- Features: heroicons → `FeatureIcons` (6 unique), hover `scale-110` + `border-blue-500/30`
+- Platforms: gradient overlay on hover per platform
+- Footer: gradient logo badge
+
+### Build Status
+- ✅ TypeScript: 0 errors
+- ✅ Next.js build: 32 pages, 0 errors
+- ✅ Zero external dependencies added
+- ✅ Commit: `22fab94`
+
+## Current State (as of 2026-04-29)
+
+### Completed
+- Roadmap: All 10 tasks completed and committed
+- UI/UX Redesign: Full redesign with glassmorphism, animations, theme toggle
+- Components: Input, Button, Toast, Skeleton, Navbar
+- Contexts: useAuth(), useToast(), useTheme()
+- New APIs: Env vars CRUD, Audit logs, GitHub webhook, Vercel webhook (idempotent), Teams CRUD
+- Security fixes: User enumeration, idempotency, audit logging, atomic deletes
+- Tests: 63 passing, 12 skipped, 0 failures
+- SVG Graphics System: Hero illustration, 6 feature icons, background patterns, OG images
+
+### Pending Work
+1. Stripe billing integration (schema exists, API pending)
+2. Admin dashboard page for monitoring all deployments/users
+3. Webhook event replay/retry mechanism
+4. PR-based preview deployments via GitHub webhook
+5. i18n support (currently all strings hardcoded in English)
+
+### Branch Status
+- Branch: `master`, up to date with `origin/master`
+- Last commit: `22fab94` — feat: add SVG graphics system
+- Build: 32 pages, 0 errors
+- TypeScript: 0 errors

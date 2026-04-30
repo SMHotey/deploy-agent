@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
       id: userWithHash.id,
       email: userWithHash.email,
       name: userWithHash.name || '',
+      isAdmin: false,
     });
 
     logger.info('Local login successful', { userId: userWithHash.id });

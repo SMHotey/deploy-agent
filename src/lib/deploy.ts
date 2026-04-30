@@ -92,7 +92,8 @@ class VercelPlatform implements PlatformDeployer {
 
       // Step 3: Create deployment
       const environment = params.environment_slug || 'production';
-      const isPreview = environment === 'preview' || environment === 'development';
+      const isPreview = environment === 'preview' || environment === 'development' || !!params.preview_for_pr;
+      const prNumber = (params as any).prNumber;
 
       const deploymentResult = await withRetry(async () => {
         return vercel.createDeployment({
@@ -109,6 +110,7 @@ class VercelPlatform implements PlatformDeployer {
           teamId: ctx.teamId,
           target: environment,
           isPreview,
+          prNumber,
         });
       }, { maxRetries: 3, initialDelayMs: 2000 });
 

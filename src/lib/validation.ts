@@ -145,12 +145,23 @@ export function parseDeployParams(data: unknown): {
 
 // GitHub webhook schema
 const gitHubWebhookSchema = z.object({
-  ref: z.string(),
+  ref: z.string().optional(),
   repository: z.object({
     full_name: z.string(),
   }),
   after: z.string().optional(),
-});
+  action: z.string().optional(),
+  pull_request: z.object({
+    number: z.number(),
+    head: z.object({
+      ref: z.string(),
+      sha: z.string(),
+    }),
+    base: z.object({
+      ref: z.string(),
+    }),
+  }).optional(),
+}).passthrough();
 
 export function parseGitHubWebhook(data: unknown): {
   success: boolean;
