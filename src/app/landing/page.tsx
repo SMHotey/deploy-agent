@@ -42,7 +42,7 @@ export default function LandingPage() {
         <div className="noise absolute inset-0 pointer-events-none" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl md:text-6xl font-extrabold text-white animate-fade-in-up stagger-1">
+          <h1 className="gradient-text text-5xl md:text-6xl font-extrabold animate-fade-in-up stagger-1">
             {t('title')}
           </h1>
           <p className="mt-6 text-xl text-white/90 max-w-2xl mx-auto animate-fade-in-up stagger-2">
@@ -51,11 +51,11 @@ export default function LandingPage() {
           <div className="mt-8 flex justify-center gap-4 flex-wrap animate-fade-in-up stagger-3">
             <Link
               href="/deploy"
-              className="px-8 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 text-white font-medium hover:from-blue-500 hover:to-violet-500 transition-colors"
+              className="px-8 py-3 rounded-lg bg-white text-blue-600 font-medium hover:bg-blue-50 transition-colors shadow-lg shadow-blue-500/30"
             >
               Start Deploying
             </Link>
-            <a href="#features" className="px-8 py-3 rounded-lg border border-white/40 text-white bg-white/10 hover:bg-white/20 transition-colors">
+            <a href="#features" className="px-8 py-3 rounded-lg border border-white/40 text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm">
               Learn More
             </a>
           </div>

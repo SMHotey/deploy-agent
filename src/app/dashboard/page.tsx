@@ -110,79 +110,80 @@ export default function DashboardPage() {
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {[
-            { label: 'Total Projects', value: stats.totalProjects, icon: '📦', gradient: 'from-blue-500/10 to-blue-500/5' },
-            { label: 'Total Deployments', value: stats.totalDeployments, icon: '🚀', gradient: 'from-emerald-500/10 to-emerald-500/5' },
-            { label: 'Active', value: stats.activeDeployments, icon: '⚡', gradient: 'from-amber-500/10 to-amber-500/5' },
-            { label: 'Successful', value: stats.successfulDeployments, icon: '✅', gradient: 'from-green-500/10 to-green-500/5' },
+            { label: 'Total Projects', value: stats.totalProjects, icon: '📦', gradient: 'from-blue-500/10 to-blue-500/5', border: 'border-blue-500/20', text: 'text-blue-600 dark:text-blue-400' },
+            { label: 'Total Deployments', value: stats.totalDeployments, icon: '🚀', gradient: 'from-emerald-500/10 to-emerald-500/5', border: 'border-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Active', value: stats.activeDeployments, icon: '⚡', gradient: 'from-amber-500/10 to-amber-500/5', border: 'border-amber-500/20', text: 'text-amber-600 dark:text-amber-400' },
+            { label: 'Successful', value: stats.successfulDeployments, icon: '✅', gradient: 'from-green-500/10 to-green-500/5', border: 'border-green-500/20', text: 'text-green-600 dark:text-green-400' },
           ].map((s, i) => (
-            <div key={s.label} style={{ animationDelay: `${i * 80}ms` }} className="animate-fade-in-up">
-              <Card
-                className={`bg-gradient-to-br ${s.gradient} border-border/50 hover:shadow-lg hover:scale-[1.02] transition-all cursor-default`}
-              >
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-2xl">{s.icon}</span>
-                  <span className="text-3xl font-bold text-foreground">{s.value}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">{s.label}</p>
-              </CardContent>
-            </Card>
+            <div 
+              key={s.label} 
+              style={{ animationDelay: `${i * 80}ms` }} 
+              className={`animate-fade-in-up bg-gradient-to-br ${s.gradient} border ${s.border} rounded-xl p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-default group`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-2xl">{s.icon}</span>
+                <span className={`text-3xl font-bold ${s.text}`}>{s.value}</span>
+              </div>
+              <p className="text-sm text-muted-foreground">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Recent Deployments */}
-        <Card className="animate-fade-in-up stagger-4">
-          <CardHeader>
-            <CardTitle>Recent Deployments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentDeployments.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-4xl mb-3">🚀</p>
-                <p className="text-lg font-medium mb-2 text-foreground">No deployments yet</p>
-                <p className="mb-4">Create your first deployment to get started</p>
-                <Link href="/deploy" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-                  Deploy Now
-                </Link>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {recentDeployments.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between py-3 hover:bg-muted/50 rounded-lg px-2 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold">
-                        {(d.project?.name || 'U')[0].toUpperCase()}
+        <div className="animate-fade-in-up stagger-3">
+          <Card hoverable>
+            <CardHeader>
+              <CardTitle>Recent Deployments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentDeployments.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p className="text-4xl mb-3">🚀</p>
+                  <p className="text-lg font-medium mb-2 text-foreground">No deployments yet</p>
+                  <p className="mb-4">Create your first deployment to get started</p>
+                  <Link href="/deploy" className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                    Deploy Now
+                  </Link>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {recentDeployments.map((d) => (
+                    <div key={d.id} className="flex items-center justify-between py-3 hover:bg-muted/50 rounded-lg px-2 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold`}>
+                          {(d.project?.name || 'U')[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <Link href={`/deploy/${d.id}`} className="font-medium text-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                            {d.project?.name || 'Unknown'}
+                          </Link>
+                          <p className="text-xs text-muted-foreground">{timeAgo(d.createdAt)}</p>
+                        </div>
                       </div>
-                      <div>
-                        <Link href={`/deploy/${d.id}`} className="font-medium text-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                          {d.project?.name || 'Unknown'}
-                        </Link>
-                        <p className="text-xs text-muted-foreground">{timeAgo(d.createdAt)}</p>
-                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColor(d.status)}`}>
+                        {d.status}
+                      </span>
                     </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColor(d.status)}`}>
-                      {d.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Quick Links */}
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in-up stagger-5">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in-up stagger-4">
           {[
-            { href: '/projects', title: 'View Projects', desc: 'Manage your deployments' },
-            { href: '/analytics', title: 'Analytics', desc: 'View deployment metrics' },
-            { href: '/settings', title: 'Settings', desc: 'Configure tokens & preferences' },
+            { href: '/projects', title: 'View Projects', desc: 'Manage your deployments', gradient: 'from-blue-500/10 to-blue-500/5', border: 'hover:border-blue-500/30', icon: '📁' },
+            { href: '/analytics', title: 'Analytics', desc: 'View deployment metrics', gradient: 'from-emerald-500/10 to-emerald-500/5', border: 'hover:border-emerald-500/30', icon: '📊' },
+            { href: '/settings', title: 'Settings', desc: 'Configure tokens & preferences', gradient: 'from-violet-500/10 to-violet-500/5', border: 'hover:border-violet-500/30', icon: '⚙' },
           ].map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="p-4 bg-card rounded-lg border border-border/50 hover:shadow-md hover:border-border transition-all text-center group"
+              className={`p-4 bg-gradient-to-br ${l.gradient} rounded-xl border border-border/50 ${l.border} hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group text-center`}
             >
+              <div className="text-2xl mb-2">{l.icon}</div>
               <h3 className="font-semibold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{l.title}</h3>
               <p className="text-sm text-muted-foreground">{l.desc}</p>
             </Link>

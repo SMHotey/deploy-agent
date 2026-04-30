@@ -75,21 +75,27 @@ export default function StatusPage() {
 
   const overallConfig = statusConfig[data.status];
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <div className="text-6xl mb-4">{overallConfig.emoji}</div>
-          <h1 className="text-4xl font-bold tracking-tight mb-2">
-            <span className={data.status === 'operational' ? 'text-green-500' : data.status === 'degraded' ? 'text-yellow-500' : 'text-red-500'}>
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          {/* Header with gradient bg */}
+          <div className={`text-center mb-16 p-8 rounded-2xl bg-gradient-to-r ${
+            data.status === 'operational' ? 'from-green-500/10 to-emerald-500/10 border-green-500/20' :
+            data.status === 'degraded' ? 'from-yellow-500/10 to-orange-500/10 border-yellow-500/20' :
+            'from-red-500/10 to-pink-500/10 border-red-500/20'
+          } border`}>
+            <div className="text-6xl mb-4">{overallConfig.emoji}</div>
+            <h1 className={`text-4xl font-bold tracking-tight mb-2 ${
+              data.status === 'operational' ? 'text-green-500' :
+              data.status === 'degraded' ? 'text-yellow-500' :
+              'text-red-500'
+            }`}>
               {overallConfig.text}
-            </span>
-          </h1>
-          <p className="text-muted-foreground">
-            All systems are monitored. Last checked: {new Date(data.timestamp).toLocaleTimeString()}
-          </p>
-        </div>
+            </h1>
+            <p className="text-muted-foreground">
+              All systems are monitored. Last checked: {new Date(data.timestamp).toLocaleTimeString()}
+            </p>
+          </div>
 
         {/* Systems */}
         <section className="mb-16">
@@ -100,7 +106,11 @@ export default function StatusPage() {
               return (
                 <div
                   key={system.id}
-                  className="flex items-center justify-between rounded-xl border border-border/50 bg-card/50 p-4"
+                  className={`flex items-center justify-between rounded-xl border p-4 transition-all hover:-translate-y-0.5 ${
+                    system.status === 'operational' ? 'border-green-500/20 bg-green-500/5' :
+                    system.status === 'degraded' ? 'border-yellow-500/20 bg-yellow-500/5' :
+                    'border-red-500/20 bg-red-500/5'
+                  }`}
                 >
                   <div>
                     <h3 className="font-medium">{system.name}</h3>
@@ -123,18 +133,31 @@ export default function StatusPage() {
         <section className="mb-16">
           <h2 className="text-2xl font-semibold mb-6">24h Statistics</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-border/50 bg-card/50 p-6 text-center">
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-6 text-center hover:-translate-y-0.5 transition-all duration-300">
               <div className="text-3xl font-bold text-blue-500">{data.stats.totalDeployments24h}</div>
               <div className="text-sm text-muted-foreground mt-1">Total Deployments</div>
             </div>
-            <div className="rounded-xl border border-border/50 bg-card/50 p-6 text-center">
-              <div className={`text-3xl font-bold ${data.stats.successRate >= 95 ? 'text-green-500' : data.stats.successRate >= 80 ? 'text-yellow-500' : 'text-red-500'}`}>
+            <div className={`rounded-xl border p-6 text-center hover:-translate-y-0.5 transition-all duration-300 ${
+              data.stats.successRate >= 95 ? 'border-green-500/20 bg-green-500/5' :
+              data.stats.successRate >= 80 ? 'border-yellow-500/20 bg-yellow-500/5' :
+              'border-red-500/20 bg-red-500/5'
+            }`}>
+              <div className={`text-3xl font-bold ${
+                data.stats.successRate >= 95 ? 'text-green-500' :
+                data.stats.successRate >= 80 ? 'text-yellow-500' :
+                'text-red-500'
+              }`}>
                 {data.stats.successRate}%
               </div>
               <div className="text-sm text-muted-foreground mt-1">Success Rate</div>
             </div>
-            <div className="rounded-xl border border-border/50 bg-card/50 p-6 text-center">
-              <div className={`text-3xl font-bold ${data.stats.failedDeployments === 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <div className={`rounded-xl border p-6 text-center hover:-translate-y-0.5 transition-all duration-300 ${
+              data.stats.failedDeployments === 0 ? 'border-green-500/20 bg-green-500/5' :
+              'border-red-500/20 bg-red-500/5'
+            }`}>
+              <div className={`text-3xl font-bold ${
+                data.stats.failedDeployments === 0 ? 'text-green-500' : 'text-red-500'
+              }`}>
                 {data.stats.failedDeployments}
               </div>
               <div className="text-sm text-muted-foreground mt-1">Failed Deployments</div>
@@ -183,9 +206,12 @@ export default function StatusPage() {
         </section>
 
         {/* Footer */}
-        <footer className="mt-16 pt-8 border-t border-border text-center">
+        <footer className="mt-16 pt-8 border-t border-border flex items-center justify-between">
           <Link href="/" className="text-blue-500 hover:underline">
             ← Back to Deploy Agent
+          </Link>
+          <Link href="/blog" className="text-blue-500 hover:underline">
+            Read Blog →
           </Link>
         </footer>
       </div>

@@ -218,18 +218,51 @@ export default function DeployWizard({ onComplete }: { onComplete?: () => void }
         </div>
       </div>
 
-      {/* Step indicators */}
-      <div className="flex justify-center gap-2 mt-6">
-        {STEPS.map((_, i) => (
-          <div
-            key={i}
-            className={`w-2.5 h-2.5 rounded-full transition-colors ${
-              i === currentStep ? 'bg-primary' :
-              i < currentStep ? 'bg-primary/60' :
-              'bg-muted'
-            }`}
-          />
-        ))}
+      {/* Step indicators - modern design */}
+      <div className="flex items-center justify-center gap-2 mt-6">
+        {STEPS.map((step, i) => {
+          const isActive = i === currentStep;
+          const isCompleted = i < currentStep;
+          const isUpcoming = i > currentStep;
+          
+          return (
+            <div key={i} className="flex items-center">
+              <div
+                className={`relative flex items-center justify-center transition-all duration-500 ${
+                  isActive ? 'w-8 h-8' : 'w-6 h-6'
+                }`}
+              >
+                {/* Glow effect for active step */}
+                {isActive && (
+                  <div className="absolute inset-0 rounded-full bg-blue-500/30 animate-pulse-glow" />
+                )}
+                <div
+                  className={`relative z-10 flex items-center justify-center rounded-full border-2 transition-all duration-300 ${
+                    isCompleted
+                      ? 'bg-blue-500 border-blue-500 text-white'
+                      : isActive
+                      ? 'bg-blue-500/10 border-blue-500 text-blue-500'
+                      : 'bg-background border-muted text-muted-foreground'
+                  } ${isActive ? 'w-8 h-8' : 'w-6 h-6'}`}
+                >
+                  {isCompleted ? (
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span className={`font-medium ${isActive ? 'text-sm' : 'text-xs'}`}>{i + 1}</span>
+                  )}
+                </div>
+              </div>
+              {/* Connector line */}
+              {i < STEPS.length - 1 && (
+                <div className={`w-8 h-0.5 transition-colors duration-500 ${
+                  isCompleted ? 'bg-blue-500' : 'bg-muted'
+                }`} />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
