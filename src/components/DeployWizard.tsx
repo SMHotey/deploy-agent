@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { getTemplatesByPlatform, getTemplate } from '@/lib/templates';
 
 interface WizardStep {
   title: string;
@@ -29,6 +30,19 @@ const STEPS: WizardStep[] = [
     ],
   },
   {
+    title: 'Select template',
+    description: 'Choose a deployment template for your framework.',
+    fields: [
+      { name: 'template', label: 'Template', type: 'select', required: true, options: [
+        { value: 'nextjs-vercel', label: '▲ Next.js + Vercel (Recommended)' },
+        { value: 'react-vite', label: '⚛️ React + Vite' },
+        { value: 'vue-vite', label: '💚 Vue + Vite' },
+        { value: 'astro-static', label: '🚀 Astro Static' },
+        { value: 'express-api', label: '🚂 Express API' },
+      ]},
+    ],
+  },
+  {
     title: 'Select platform',
     description: 'Choose where to deploy your project.',
     fields: [
@@ -36,20 +50,6 @@ const STEPS: WizardStep[] = [
         { value: 'vercel', label: 'Vercel (Recommended for beginners)' },
         { value: 'netlify', label: 'Netlify' },
         { value: 'cloudflare-pages', label: 'Cloudflare Pages' },
-      ]},
-    ],
-  },
-  {
-    title: 'Configure build',
-    description: 'Set up your build settings. We\'ll auto-detect most settings.',
-    fields: [
-      { name: 'branch', label: 'Branch', type: 'text', placeholder: 'main', required: true },
-      { name: 'framework_preset', label: 'Framework (auto-detected)', type: 'select', options: [
-        { value: 'nextjs', label: 'Next.js' },
-        { value: 'react', label: 'React' },
-        { value: 'vue', label: 'Vue' },
-        { value: 'astro', label: 'Astro' },
-        { value: 'other', label: 'Other / Auto-detect' },
       ]},
     ],
   },
