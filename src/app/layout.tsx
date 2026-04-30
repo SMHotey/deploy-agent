@@ -3,7 +3,12 @@ import Navbar from '@/components/Navbar';
 import { Providers } from './providers';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  // Prevent build failure if Google Fonts unavailable
+  variable: '--font-inter',
+});
 
 export const metadata = {
   title: 'Deploy Agent - Modern Deployment Automation',

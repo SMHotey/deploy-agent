@@ -91,7 +91,7 @@ export default async function AdminDashboardPage() {
             {recentDeployments.map((d) => (
               <div key={d.id} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
                 <div>
-                  <p className="font-medium">{d.project?.name || 'Unknown'}</p>
+                  <p className="font-medium">{Array.isArray(d.project) ? d.project[0]?.name : d.project?.name || 'Unknown'}</p>
                   <p className="text-sm text-slate-400">{d.branch} • {d.commitSha?.slice(0, 7)}</p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${

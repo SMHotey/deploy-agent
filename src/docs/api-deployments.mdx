@@ -1,0 +1,143 @@
+---
+title: "API: Deployments Reference"
+date: "2026-04-30"
+excerpt: "Complete reference for Deploy Agent deployment endpoints."
+---
+
+# API: Deployments Reference
+
+The Deployments API allows you to create, monitor, and manage deployments programmatically.
+
+## Base URL
+
+```
+https://your-domain.com/api/deploy
+```
+
+## Authentication
+
+All endpoints require JWT authentication:
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+Get your token from `/api/auth/login` or `/api/auth/register`.
+
+## Endpoints
+
+### POST /api/deploy
+
+Create a new deployment.
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `repo_url` | string | ✅ | GitHub repository URL |
+| `project_name` | string | ❌ | Custom project name |
+| `target_platform` | string | ❌ | `vercel`, `netlify`, `railway`, `docker` |
+| `branch` | string | ❌ | Branch to deploy (default: `main`) |
+| `environment_variables` | object | ❌ | Key-value pairs, encrypted at rest |
+| `build_override` | string | ❌ | Custom build command |
+| `output_directory` | string | ❌ | Custom output directory |
+| `custom_domain` | string | ❌ | Custom domain for deployment |
+| `framework_preset` | string | ❌ | `nextjs`, `react`, `vue`, `astro`, etc. |
+
+**Example Request:**
+
+```bash
+curl -X POST https://your-domain.com/api/deploy \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOi..." \
+  -d '{
+    "repo_url": "https://github.com/vercel/next.js",
+    "project_name": "my-next-app",
+    "target_platform": "vercel",
+    "framework_preset": "nextjs",
+    "environment_variables": {
+      "DATABASE_URL": "postgres://...",
+      "NEXT_PUBLIC_API_URL": "https://api.example.com"
+    }
+  }'
+```
+
+**Response (201 Created):**
+
+```json
+{
+  "deployment_id": "dep_abc123",
+  "status": "building",
+  "url": "https://my-next-app.vercel.app",
+  "logs_url": "/api/deploy/dep_abc123/logs"
+}
+```
+
+### GET /api/deploy?deployment_id=XXX
+
+Get deployment status and logs.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `deployment_id` | string | Deployment ID to retrieve |
+
+**Response (200 OK):**
+
+```json
+{
+  "deployment_id": "dep_abc123",
+  "status": "ready",
+  "url": "https://my-next-app.vercel.app",
+  "build_time": 45000,
+  "created_at": "2026-04-30T12:00:00Z"
+}
+```
+
+### GET /api/deploy/[id]/stream
+
+Stream real-time deployment logs via Server-Sent Events (SSE).
+
+**Headers:**
+```
+Accept: text/event-stream
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**Event Format:**
+```
+event: log
+data: {"message": "Installing dependencies...", "timestamp": "2026-04-30T12:00:00Z"}
+
+event: complete
+data: {"status": "ready", "url": "https://..."}
+```
+
+## Rate Limiting
+
+- **Free**: 10 deployments/day
+- **Pro**: 100 deployments/day
+- **Team**: 1,000 deployments/day
+- **Enterprise**: Unlimited
+
+Exceeds return `409 Conflict` with body:
+```json
+{"error": "Daily deployment limit reached", "limit": 10, "current": 10}
+```
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| 400 | Invalid request body |
+| 401 | Unauthorized (invalid/missing token) |
+| 403 | Forbidden (insufficient permissions) |
+| 409 | Conflict (rate limit exceeded) |
+| 500 | Internal server error |
+
+## Next Steps
+
+- [Webhooks Guide](/docs/guides/webhooks)
+- [Environment Variables API](/docs/api/env-vars)
+- [Project Management API](/docs/api/projects)

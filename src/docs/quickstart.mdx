@@ -1,0 +1,91 @@
+---
+title: "Quick Start Guide"
+date: "2026-04-30"
+excerpt: "Get your first deployment live in under 5 minutes with Deploy Agent."
+---
+
+# Quick Start Guide
+
+Welcome to Deploy Agent! This guide will walk you through deploying your first application in under 5 minutes.
+
+## Prerequisites
+
+- A GitHub account with a repository you want to deploy
+- A Deploy Agent account (sign up at `/auth/register`)
+- Your GitHub Personal Access Token (repo scope)
+- Your Vercel API Token (optional, for Vercel deployments)
+
+## Step 1: Sign Up & Login
+
+1. Visit `/auth/register` to create your account
+2. Or visit `/` and click "Get Started"
+3. After registration, you'll receive a JWT token automatically
+
+## Step 2: Configure Your Tokens
+
+Go to `/settings/tokens` and add:
+- **GitHub Token**: Personal Access Token with `repo` scope
+- **Vercel Token**: From [vercel.com/account/tokens](https://vercel.com/account/tokens)
+
+These are encrypted with AES-256-GCM before storage.
+
+## Step 3: Deploy via UI
+
+1. Go to `/deploy`
+2. Paste your GitHub repository URL
+3. Select target platform (Vercel recommended)
+4. Click "Deploy"
+
+Your app will be live in 30-60 seconds!
+
+## Step 3 Alternative: Deploy via API
+
+```bash
+curl -X POST http://localhost:3000/api/deploy \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "repo_url": "https://github.com/your-org/your-repo",
+    "project_name": "my-awesome-app",
+    "target_platform": "vercel"
+  }'
+```
+
+Response:
+```json
+{
+  "deployment_id": "dep_abc123",
+  "status": "building",
+  "url": "https://my-awesome-app.vercel.app"
+}
+```
+
+## Step 4: Monitor Deployment
+
+Visit `/deploy/dep_abc123` to see:
+- Real-time build logs (SSE streaming)
+- Deployment status
+- Preview URL when ready
+
+## Step 5: Set Up Webhooks (Optional)
+
+For automatic deployments on `git push`:
+
+1. Go to `/settings` → "Webhooks"
+2. Add your repository webhook URL: `https://your-domain.com/api/webhooks/github`
+3. Select events: `push`, `pull_request`
+
+Now every push to `main` triggers a deployment automatically!
+
+## Next Steps
+
+- [Configure environment variables](/docs/guides/env-vars)
+- [Set up custom domains](/docs/guides/custom-domains)
+- [Explore deployment templates](/deploy)
+- [Read API reference](/api/instructions)
+
+## Need Help?
+
+- Check `/api/instructions` for full API docs
+- Visit `/blog` for tutorials
+- Open an issue on [GitHub](https://github.com/deploy-agent)

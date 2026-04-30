@@ -41,6 +41,9 @@ export const users = pgTable('users', {
   vercelToken: varchar('vercel_token', { length: 255 }),
   netlifyToken: varchar('netlify_token', { length: 255 }),
   supabaseToken: text('supabase_token'),
+  // Referral system
+  referralCode: varchar('referral_code', { length: 20 }).unique(),
+  referredBy: integer('referred_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -285,6 +288,23 @@ export const subscriptions = pgTable('subscriptions', {
 
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   user: one(users, { fields: [subscriptions.userId], references: [users.id] }),
+}));
+
+// Referrals table
+export const referrals = pgTable('referrals', {
+  id: serial('id').primaryKey(),
+  referrerId: integer('referrer_id').notNull().references(() => users.id),
+  referredId: integer('referred_id').notNull().references(() => users.id),
+  referralCode: varchar('referral_code', { length: 20 }).notNull(),
+  status: varchar('status', { length: 20 }).default('pending').notNull(), // pending, completed, rewarded
+  rewardClaimed: boolean('reward_claimed').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  rewardedAt: timestamp('rewarded_at'),
+});
+
+export const referralsRelations = relations(referrals, ({ one }) => ({
+  referrer: one(users, { fields: [referrals.referrerId], references: [users.id], relationName: 'referrer' }),
+  referred: one(users, { fields: [referrals.referredId], references: [users.id], relationName: 'referred' }),
 }));
 
 // Type exports

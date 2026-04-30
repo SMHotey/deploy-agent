@@ -1,0 +1,65 @@
+---
+title: "5 Deployment Strategies Compared: Which One Fits Your Team?"
+date: "2026-04-28"
+excerpt: "Blue-green, canary, rolling, recreate, and shadow deployments explained with real-world examples."
+author: "Deploy Agent Team"
+tags: ["devops", "deployment", "strategy", "guide"]
+---
+
+# 5 Deployment Strategies Compared
+
+Choosing the right deployment strategy can make or break your release process. Here's how the top 5 strategies compare.
+
+## 1. Recreate Deployment
+
+**How it works**: Stop old version, deploy new version.
+**Pros**: Simple, no dual running costs.
+**Cons**: Downtime during deployment.
+**Best for**: Small apps, internal tools.
+
+## 2. Rolling Deployment
+
+**How it works**: Gradually replace old instances with new ones.
+**Pros**: No downtime, gradual rollout.
+**Cons**: Both versions run simultaneously (resource usage).
+**Best for**: Most production applications.
+
+## 3. Blue-Green Deployment
+
+**How it works**: Two identical environments (blue = current, green = new). Switch traffic when ready.
+**Pros**: Instant rollback, no downtime.
+**Cons**: Double infrastructure cost.
+**Best for**: Mission-critical applications.
+
+## 4. Canary Deployment
+
+**How it works**: Route small % of traffic to new version first.
+**Pros**: Real-world testing with minimal risk.
+**Cons**: Complex setup, requires traffic splitting.
+**Best for**: High-traffic production apps.
+
+## 5. Shadow Deployment
+
+**How it works**: Deploy new version alongside old, but don't route traffic. Compare behavior.
+**Pros**: Test production load without affecting users.
+**Cons**: Expensive (dual infrastructure), complex comparison.
+**Best for**: Performance-critical applications.
+
+## Deploy Agent Support
+
+Currently, Deploy Agent supports:
+
+- ✅ **Recreate** (default for simple apps)
+- ✅ **Rolling** (recommended for most teams)
+- 🚧 **Blue-Green** (coming soon in Pro plan)
+- 🚧 **Canary** (coming soon in Team plan)
+
+## Recommendation
+
+| Team Size | Traffic | Recommended Strategy |
+|-----------|---------|---------------------|
+| 1-5 devs | <10k/month | Rolling |
+| 5-20 devs | 10k-100k/month | Rolling or Blue-Green |
+| 20+ devs | 100k+/month | Canary |
+
+Start with rolling deployments and upgrade as your team grows. Deploy Agent makes switching strategies a one-click operation.
