@@ -307,8 +307,110 @@ export const referralsRelations = relations(referrals, ({ one }) => ({
   referred: one(users, { fields: [referrals.referredId], references: [users.id], relationName: 'referred' }),
 }));
 
+// Marketing activities table
+export const marketingActivityTypeEnum = pgEnum('marketing_activity_type', [
+  'email_campaign', 'social_media', 'content_marketing', 'webinar', 'partnership', 'referral_program', 'discount_offer'
+]);
+
+export const marketingActivityStatusEnum = pgEnum('marketing_activity_status', [
+  'draft', 'scheduled', 'active', 'completed', 'cancelled'
+]);
+
+export const marketingActivities = pgTable('marketing_activities', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  type: marketingActivityTypeEnum('type').notNull(),
+  status: marketingActivityStatusEnum('status').default('draft').notNull(),
+  startDate: timestamp('start_date'),
+  endDate: timestamp('end_date'),
+  budgetCents: integer('budget_cents').default(0),
+  targetAudience: varchar('target_audience', { length: 500 }),
+  conversionGoal: varchar('conversion_goal', { length: 255 }),
+  currentConversions: integer('current_conversions').default(0).notNull(),
+  notes: text('notes'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const marketingActivitiesRelations = relations(marketingActivities, ({ one }) => ({
+  creator: one(users, { fields: [marketingActivities.createdBy], references: [users.id] }),
+}));
+
+// Hosting providers table (for affiliate partnerships)
+export const hostingProviders = pgTable('hosting_providers', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  slug: varchar('slug', { length: 50 }).notNull().unique(),
+  description: text('description'),
+  logoUrl: varchar('logo_url', { length: 500 }),
+  affiliateUrl: varchar('affiliate_url', { length: 500 }),
+  commissionRate: varchar('commission_rate', { length: 20 }), // e.g. "$20 per signup"
+  commissionType: varchar('commission_type', { length: 20 }).default('cpa'), // cpa, cpc, revenue_share
+  minPayout: integer('min_payout').default(50),
+  paymentTerms: varchar('payment_terms', { length: 100 }).default('Net-30'),
+  categories: jsonb('categories').$type<string[]>(), // e.g. ['frontend', 'fullstack', 'static']
+  features: jsonb('features').$type<string[]>(),
+  pricing: jsonb('pricing').$type<{ plan: string; price: string; specs: string[] }[]>(),
+  isActive: boolean('is_active').default(true).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Affiliate clicks tracking
+export const affiliateClicks = pgTable('affiliate_clicks', {
+  id: serial('id').primaryKey(),
+  providerId: integer('provider_id').references(() => hostingProviders.id),
+  userId: integer('user_id').references(() => users.id),
+  projectId: integer('project_id').references(() => projects.id),
+  referrer: varchar('referrer', { length: 500 }),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  clickedAt: timestamp('clicked_at').defaultNow().notNull(),
+});
+
+// Affiliate conversions tracking
+export const affiliateConversions = pgTable('affiliate_conversions', {
+  id: serial('id').primaryKey(),
+  providerId: integer('provider_id').references(() => hostingProviders.id),
+  userId: integer('user_id').references(() => users.id),
+  projectId: integer('project_id').references(() => projects.id),
+  conversionType: varchar('conversion_type', { length: 50 }).notNull(), // 'signup', 'deployment', 'paid_plan'
+  conversionValue: integer('conversion_value').default(0), // in cents
+  commissionEarned: integer('commission_earned').default(0), // in cents
+  status: varchar('status', { length: 20 }).default('pending'), // pending, confirmed, paid
+  externalId: varchar('external_id', { length: 100 }), // provider's conversion ID
+  convertedAt: timestamp('converted_at').defaultNow().notNull(),
+  paidAt: timestamp('paid_at'),
+});
+
+// Relations
+export const hostingProvidersRelations = relations(hostingProviders, ({ many }) => ({
+  clicks: many(affiliateClicks),
+  conversions: many(affiliateConversions),
+}));
+
+export const affiliateClicksRelations = relations(affiliateClicks, ({ one }) => ({
+  provider: one(hostingProviders, { fields: [affiliateClicks.providerId], references: [hostingProviders.id] }),
+  user: one(users, { fields: [affiliateClicks.userId], references: [users.id] }),
+  project: one(projects, { fields: [affiliateClicks.projectId], references: [projects.id] }),
+}));
+
+export const affiliateConversionsRelations = relations(affiliateConversions, ({ one }) => ({
+  provider: one(hostingProviders, { fields: [affiliateConversions.providerId], references: [hostingProviders.id] }),
+  user: one(users, { fields: [affiliateConversions.userId], references: [users.id] }),
+  project: one(projects, { fields: [affiliateConversions.projectId], references: [projects.id] }),
+}));
+
 // Type exports
-export type Subscription = typeof subscriptions.$inferSelect;
-export type NewSubscription = typeof subscriptions.$inferInsert;
-export type UsageRecord = typeof usageRecords.$inferSelect;
-export type NewUsageRecord = typeof usageRecords.$inferInsert;
+export type HostingProvider = typeof hostingProviders.$inferSelect;
+export type NewHostingProvider = typeof hostingProviders.$inferInsert;
+export type AffiliateClick = typeof affiliateClicks.$inferSelect;
+export type NewAffiliateClick = typeof affiliateClicks.$inferInsert;
+export type AffiliateConversion = typeof affiliateConversions.$inferSelect;
+export type NewAffiliateConversion = typeof affiliateConversions.$inferInsert;
+
+export type MarketingActivity = typeof marketingActivities.$inferSelect;
+export type NewMarketingActivity = typeof marketingActivities.$inferInsert;
