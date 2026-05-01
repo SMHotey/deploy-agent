@@ -4,6 +4,7 @@ A production-ready deployment automation agent that deploys git repositories to 
 
 ## Features
 
+### Core Deployment
 - **One-click deployment** from GitHub, GitLab, or Bitbucket repositories
 - **Multi-platform support**: Vercel, Netlify, Cloudflare Pages, Railway
 - **Full configuration** via API or UI (100+ parameters)
@@ -13,6 +14,13 @@ A production-ready deployment automation agent that deploys git repositories to 
 - **GitHub Actions integration** for CI/CD
 - **Real-time deployment logs**
 - **Supabase backend automation** support
+
+### 🆕 New: Smart Analysis & Marketing (2026-05)
+- **Repository Analysis System** - Auto-detect tech stack (Next.js, React, Vue, Python, etc.) and recommend optimal hosting
+- **Demand Analytics** - Track project interest, calculate demand scores, identify trending projects
+- **Marketing Tools** - Project showcase, share tracking (social/email/embed), promotional analytics
+- **Startup Features** - Readiness validation, project templates, health scores, budget control
+- **Enhanced Dashboards** - Analytics export (CSV/JSON), financial analytics, system health monitoring
 
 ## Quick Start
 
@@ -59,6 +67,21 @@ curl -X POST http://localhost:3000/api/deploy \
 | GET | `/api/deploy?deployment_id=xxx` | Get deployment status/logs |
 | GET | `/api/projects` | List projects |
 | GET | `/api/health` | Health check |
+
+### 🆕 New API Endpoints (2026-05)
+
+| Method | Endpoint | Description |
+|--------|----------|------------|
+| GET | `/api/repo-analyze?repo_url=...` | Analyze repository & recommend hosting |
+| GET | `/api/demand` | Get demand analytics for projects |
+| POST | `/api/demand/track` | Track demand event (view, deploy, share) |
+| GET | `/api/marketing/showcase` | Public project showcase |
+| POST | `/api/marketing/showcase` | Track share event |
+| GET | `/api/startup/templates` | Get startup project templates |
+| POST | `/api/startup/validate` | Validate startup readiness |
+| GET | `/api/startup/health-score` | Get project health score |
+| GET | `/api/analytics/export` | Export analytics (CSV/JSON) |
+| GET | `/api/admin/billing-analytics` | Admin: Financial analytics |
 
 ## Configuration
 
@@ -128,11 +151,16 @@ docker-compose -f docker-compose.yml up -d --build
 
 ## Roadmap
 
+- [x] Repository Analysis & Hosting Recommendation
+- [x] Demand Analytics System
+- [x] Marketing Tools & Project Showcase
+- [x] Startup Features (Templates, Validation, Health Scores)
+- [x] Enhanced Dashboards (Analytics Export, Admin Analytics)
+- [x] Deployment Flow Integration (auto-analyze before deploy)
 - [ ] OAuth for private repositories
 - [ ] Self-hosted Docker/K8s deployment
 - [ ] Vercel Edge Functions support
 - [ ] A/B testing with Vercel Flags
-- [ ] Dashboard with analytics
 
 ## License
 
@@ -182,6 +210,64 @@ MIT
 - User retention (Week 1 → Week 4)
 - Upgrade conversion rate (Free → Pro/Team)
 - Support ticket volume (target: <5% of user base)
+
+---
+
+## 🆕 New Features (May 2026)
+
+### Repository Analysis System
+Automatically analyzes repository URLs to detect:
+- **Frontend stack**: Next.js, React, Vue, Angular, Svelte
+- **Backend stack**: Node.js/Express, Python/Flask, Python/Django, Go, Rust
+- **Databases**: PostgreSQL, MongoDB, MySQL, SQLite, Redis
+- **Infrastructure**: Docker, Docker Compose, Kubernetes
+
+**Endpoint**: `GET /api/repo-analyze?repo_url=https://github.com/vercel/next.js`
+
+**Returns**: Detected stack + hosting recommendation with confidence score
+
+### Demand Analytics System
+Tracks project interest and calculates demand scores (0-100):
+- Based on deployment frequency, project age, recent activity
+- Identifies trending projects
+- Platform distribution analytics
+
+**Endpoints**:
+- `GET /api/demand` - Get demand analytics
+- `POST /api/demand/track` - Track demand event (view, deploy, share)
+
+### Marketing Tools
+Promotes deployed projects:
+- **Project Showcase**: Public discovery of top-deployed projects
+- **Share Tracking**: Track shares across social, email, embed, direct
+- **Promotional Analytics**: Measure marketing effectiveness
+
+**Endpoints**:
+- `GET /api/marketing/showcase` - Browse projects
+- `POST /api/marketing/showcase` - Track share event
+
+### Startup Features
+Tools for early-stage projects:
+- **Readiness Validation**: Check repo against best practices
+- **Project Templates**: Pre-configured setups (SaaS, E-commerce, Blog, etc.)
+- **Health Scores**: Monitor project vital signs
+- **Budget Control**: Track usage against billing plan
+
+**Endpoints**:
+- `GET /api/startup/templates` - Browse templates
+- `POST /api/startup/validate` - Validate readiness
+- `GET /api/startup/health-score` - Get health metrics
+
+### Enhanced Dashboards
+- **Analytics Page** (`/analytics`): Export to CSV/JSON, ProjectDetail deep-dive, AnimatedNumber components
+- **Admin Dashboard** (`/admin`): Financial analytics, system health monitoring, user analytics, notification center
+
+### Deployment Flow Integration
+The deployment process now:
+1. **Auto-analyzes** repository before deployment
+2. **Recommends hosting** if not specified
+3. **Tracks demand** after successful deployment
+4. **Returns analysis** in deployment response
 
 ---
 

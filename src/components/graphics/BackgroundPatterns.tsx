@@ -67,13 +67,14 @@ export function WavePattern({ className = '' }: { className?: string }) {
 }
 
 export function FloatingParticles({ count = 20 }: { count?: number }) {
+  // Deterministic seed-based particles for SSR/render consistency
   const particles = Array.from({ length: count }, (_, i) => ({
-    cx: `${Math.random() * 100}%`,
-    cy: `${Math.random() * 100}%`,
-    r: Math.random() * 2 + 0.5,
-    opacity: Math.random() * 0.3 + 0.1,
-    delay: `${Math.random() * 5}s`,
-    duration: `${Math.random() * 10 + 10}s`,
+    cx: `${(i * 37.3) % 100}%`,
+    cy: `${(i * 61.7) % 100}%`,
+    r: 0.5 + (i * 0.13) % 2,
+    opacity: 0.1 + (i * 0.07) % 0.3,
+    delay: `${(i * 0.37) % 5}s`,
+    duration: `${10 + (i * 0.53) % 10}s`,
   }));
 
   return (

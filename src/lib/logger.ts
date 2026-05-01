@@ -1,5 +1,6 @@
 import { createWriteStream, WriteStream } from 'fs';
 import { randomUUID } from 'crypto';
+import * as path from 'path';
 
 interface LogEntry {
   timestamp: string;
@@ -18,13 +19,20 @@ let logStream: WriteStream | null = null;
 
 function getLogStream(): WriteStream {
   if (!logStream) {
-    const fs = require('fs');
-    const path = require('path');
     const logDir = path.join(process.cwd(), 'logs');
+    const fs = require('fs'); // Keep require for conditional use
     fs.mkdirSync(logDir, { recursive: true });
     logStream = createWriteStream(path.join(logDir, 'app.log'), { flags: 'a' });
   }
   return logStream;
+}
+
+// Close log stream on shutdown
+export function closeLogger(): void {
+  if (logStream) {
+    logStream.end();
+    logStream = null;
+  }
 }
 
 export function createLogger(requestId?: string, userId?: number) {

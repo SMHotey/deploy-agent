@@ -69,21 +69,28 @@ export async function isAlreadyProcessed(key: string): Promise<boolean> {
 }
 
 /**
- * Mark an idempotency key as processed.
+ * Mark an idempotency key as processed (atomic operation).
+ * Uses Redis SET NX for atomicity, with in-memory fallback.
  */
 export async function markProcessed(key: string): Promise<void> {
   ensureCleanup();
 
   if (useRedis && redis) {
     try {
-      await redis.set(`idempotency:${key}`, '1', 'EX', 86400); // 24h TTL
+      // SET NX = only set if not exists, EX = 24h TTL (atomic operation)
+      const result = await redis.set(`idempotency:${key}`, '1', 'EX', 86400, 'NX');
+      if (result === 'OK') return;
+      // Key already exists, that's fine (idempotent)
       return;
     } catch {
       // Fall through to memory store
     }
   }
 
-  memoryStore.set(key, Date.now() + TTL_MS);
+  // Simple in-memory fallback (no perfect atomicity, but acceptable for fallback)
+  if (!memoryStore.has(key)) {
+    memoryStore.set(key, Date.now() + TTL_MS);
+  }
 }
 
 /**

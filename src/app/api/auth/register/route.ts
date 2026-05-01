@@ -35,18 +35,19 @@ export async function POST(request: NextRequest) {
 
     // Create user
     const passwordHash = await hashPassword(password);
-    const [user] = await db.insert(users).values({
+    const inserted = await db.insert(users).values({
       email,
       passwordHash,
       name: name || null,
     }).returning();
+    const user = Array.isArray(inserted) ? inserted[0] : inserted;
 
     // Generate token
     const token = generateAccessToken({
       id: user.id,
       email: user.email,
       name: user.name || '',
-      isAdmin: false,
+      isAdmin: false, // New users are not admins by default
     });
 
     return NextResponse.json({

@@ -33,16 +33,16 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const result = allUsers.map((u) => ({
+    const result = allUsers.map((u: any) => ({
       id: u.id,
       email: u.email,
       name: u.name,
       isAdmin: u.isAdmin,
-      teams: u.teamMemberships.map((tm) => ({
+      teams: u.teamMemberships?.map((tm: any) => ({
         id: tm.team.id,
         name: tm.team.name,
         role: tm.role,
-      })),
+      })) || [],
       createdAt: u.createdAt,
     }));
 

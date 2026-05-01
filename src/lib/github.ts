@@ -52,7 +52,7 @@ export class GitHubClient {
     method: string,
     path: string,
     body?: unknown,
-    options: { retry?: Partial<RetryOptions>; isRaw?: boolean } = {}
+    options: { retry?: Partial<RetryOptions>; isRaw?: boolean; signal?: AbortSignal } = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
@@ -61,24 +61,45 @@ export class GitHubClient {
       'X-GitHub-Api-Version': '2022-11-28',
     };
 
-    const fetchFn = async () => {
-      const response = await fetch(url, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      });
+    const fetchFn = async (signal?: AbortSignal) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-      if (!response.ok) {
-        const error = await response.text();
-        const status = response.status;
-        throw new Error(`GitHub API error ${status}: ${error}`);
+      // Use AbortSignal.any if available (Node 18+), otherwise fall back to manual combine
+      const abortSignal = signal
+        ? (typeof AbortSignal.any === 'function'
+            ? AbortSignal.any([signal, controller.signal])
+            : controller.signal)
+        : controller.signal;
+
+      try {
+        const response = await fetch(url, {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          signal: abortSignal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const error = await response.text();
+          const status = response.status;
+          throw new Error(`GitHub API error ${status}: ${error}`);
+        }
+
+        if (options.isRaw || response.status === 204) {
+          return response.text();
+        }
+
+        return response.json();
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          throw new Error('GitHub API request timeout after 30s');
+        }
+        throw error;
       }
-
-      if (options.isRaw || response.status === 204) {
-        return response.text();
-      }
-
-      return response.json();
     };
 
     const result = await withRetry(fetchFn, {

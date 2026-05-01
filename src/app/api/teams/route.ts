@@ -28,12 +28,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const result = memberships.map((m) => ({
+    const result = memberships.map((m: any) => ({
       id: m.team.id,
       name: m.team.name,
       description: m.team.description,
       ownerId: m.team.ownerId,
-      ownerName: m.team.owner?.name || null,
+      ownerName: (m.team as any).owner?.name || null,
       role: m.role,
       createdAt: m.team.createdAt.toISOString(),
       updatedAt: m.team.updatedAt.toISOString(),

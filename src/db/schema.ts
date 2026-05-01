@@ -31,7 +31,7 @@ export const supabaseConfig = pgTable('supabase_config', {
 });
 
 // Users table
-export const users = pgTable('users', {
+export const users: any = pgTable('users', {
   id: serial('id').primaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
@@ -43,7 +43,7 @@ export const users = pgTable('users', {
   supabaseToken: text('supabase_token'),
   // Referral system
   referralCode: varchar('referral_code', { length: 20 }).unique(),
-  referredBy: integer('referred_by').references(() => users.id),
+  referredBy: integer('referred_by').references((): any => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -385,6 +385,56 @@ export const affiliateConversions = pgTable('affiliate_conversions', {
   convertedAt: timestamp('converted_at').defaultNow().notNull(),
   paidAt: timestamp('paid_at'),
 });
+
+// Startup templates table
+export const startupTemplates = pgTable('startup_templates', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  stack: varchar('stack', { length: 100 }).notNull(), // nextjs-supabase, react-vite, python-fastapi, etc.
+  config: jsonb('config').notNull(), // pre-configured settings
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Startup readiness checks table
+export const startupReadinessChecks = pgTable('startup_readiness_checks', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  projectId: integer('project_id').references(() => projects.id),
+  checkType: varchar('check_type', { length: 50 }).notNull(), // env-vars, tokens, repo-access, config, etc.
+  status: varchar('status', { length: 20 }).notNull(), // passed, failed, warning
+  message: text('message'),
+  details: jsonb('details'), // detailed check results
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Startup health scores table
+export const startupHealthScores = pgTable('startup_health_scores', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  projectId: integer('project_id').references(() => projects.id),
+  score: integer('score').notNull(), // 0-100
+  metrics: jsonb('metrics').notNull(), // detailed metrics
+  recommendations: jsonb('recommendations'), // array of recommendations
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Relations
+export const startupTemplatesRelations = relations(startupTemplates, ({ many }) => ({
+  // No direct relations needed
+}));
+
+export const startupReadinessChecksRelations = relations(startupReadinessChecks, ({ one }) => ({
+  user: one(users, { fields: [startupReadinessChecks.userId], references: [users.id] }),
+  project: one(projects, { fields: [startupReadinessChecks.projectId], references: [projects.id] }),
+}));
+
+export const startupHealthScoresRelations = relations(startupHealthScores, ({ one }) => ({
+  user: one(users, { fields: [startupHealthScores.userId], references: [users.id] }),
+  project: one(projects, { fields: [startupHealthScores.projectId], references: [projects.id] }),
+}));
 
 // Relations
 export const hostingProvidersRelations = relations(hostingProviders, ({ many }) => ({

@@ -82,6 +82,31 @@ export async function POST(request: NextRequest) {
 
     logger.info('Starting deployment', { repoUrl: params.repo_url, platform: params.target_platform });
 
+    // NEW: Call repository analysis before deployment (if not already analyzed)
+    let repoAnalysis = null;
+    try {
+      const analysisUrl = new URL('/api/repo-analyze', request.url);
+      analysisUrl.searchParams.set('repo_url', params.repo_url);
+      
+      const analysisResponse = await fetch(analysisUrl.toString());
+      if (analysisResponse.ok) {
+        repoAnalysis = await analysisResponse.json();
+        logger.info('Repository analysis completed', { 
+          repoUrl: params.repo_url,
+          recommendedPlatform: repoAnalysis.recommendation?.recommendedPlatform,
+        });
+
+        // If target_platform not specified, use recommendation
+        if (!params.target_platform && repoAnalysis.recommendation?.recommendedPlatform) {
+          params.target_platform = repoAnalysis.recommendation.recommendedPlatform;
+          logger.info('Using recommended platform', { platform: params.target_platform });
+        }
+      }
+    } catch (analysisError) {
+      logger.warn('Repository analysis failed, continuing with deployment', { error: analysisError });
+      // Continue without analysis - non-blocking
+    }
+
     // Create deploy service — use platform-appropriate token
     const platformToken = params.target_platform === 'netlify' ? (netlifyToken || vercelToken) : vercelToken;
 
@@ -107,6 +132,30 @@ export async function POST(request: NextRequest) {
       ).catch(err => logger.error('Failed to send email notification', { error: err }));
     }
 
+    // NEW: Track demand after successful deployment
+    if (result.success && result.deploymentId) {
+      try {
+        const demandUrl = new URL('/api/demand/track', request.url);
+        await fetch(demandUrl.toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: result.deploymentId, // In production: use actual project ID
+            eventType: 'deploy',
+            metadata: {
+              repoUrl: params.repo_url,
+              platform: params.target_platform,
+              projectName: params.project_name,
+            },
+          }),
+        });
+        logger.info('Demand tracked for deployment', { deploymentId: result.deploymentId });
+      } catch (demandError) {
+        logger.warn('Demand tracking failed', { error: demandError });
+        // Non-blocking
+      }
+    }
+
     // If wait_for_completion is true, poll for status
     if (params.wait_for_completion && result.deploymentId) {
       const pollResult = await deployService.pollDeploymentStatus(result.deploymentId);
@@ -130,6 +179,8 @@ export async function POST(request: NextRequest) {
       is_preview: result.isPreview,
       logs_url: result.logsUrl,
       message: result.success ? 'Deployment started' : result.error,
+      // NEW: Include repo analysis in response
+      repo_analysis: repoAnalysis,
     });
 
   } catch (error) {

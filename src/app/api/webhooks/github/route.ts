@@ -5,6 +5,7 @@ import { db } from '@/db';
 import { projects, deployments, auditLogs, webhookEvents } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { createDeployService } from '@/lib/deploy';
+import { getUserTokens } from '@/lib/auth';
 import { createLogger, generateRequestId } from '@/lib/logger';
 import { sendDeploymentNotification } from '@/lib/email';
 
@@ -152,9 +153,12 @@ async function handlePushEvent(
   const deploymentResults = await Promise.allSettled(
     projectsToDeploy.map(async (project) => {
       try {
+        // Fetch user's tokens from DB (use user tokens, not system tokens)
+        const userTokens = project.userId ? await getUserTokens(project.userId, process.env.ENCRYPTION_KEY!) : {};
+
         const deployService = createDeployService({
-          vercelToken: process.env.VERCEL_TOKEN || '',
-          githubToken: process.env.GITHUB_TOKEN || undefined,
+          vercelToken: userTokens.vercelToken || process.env.VERCEL_TOKEN || '',
+          githubToken: userTokens.githubToken || process.env.GITHUB_TOKEN || undefined,
           encryptionKey: process.env.ENCRYPTION_KEY!,
         });
 
@@ -286,9 +290,12 @@ async function handlePullRequestEvent(
   const deploymentResults = await Promise.allSettled(
     projectsToDeploy.map(async (project) => {
       try {
+        // Fetch user's tokens from DB (use user tokens, not system tokens)
+        const userTokens = project.userId ? await getUserTokens(project.userId, process.env.ENCRYPTION_KEY!) : {};
+
         const deployService = createDeployService({
-          vercelToken: process.env.VERCEL_TOKEN || '',
-          githubToken: process.env.GITHUB_TOKEN || undefined,
+          vercelToken: userTokens.vercelToken || process.env.VERCEL_TOKEN || '',
+          githubToken: userTokens.githubToken || process.env.GITHUB_TOKEN || undefined,
           encryptionKey: process.env.ENCRYPTION_KEY!,
         });
 

@@ -181,11 +181,11 @@ export default function BillingPage() {
   // Calculate usage percentages
   const deploymentPercent = billingInfo.limits.checks.deployments.limit === Infinity 
     ? 0 
-    : Math.min(100, (billingInfo.limits.checks.deployments.current / billingInfo.limits.maxDeploymentsPerDay) * 100);
+    : Math.min(100, (billingInfo.limits.checks.deployments.current / billingInfo.limits.checks.deployments.limit) * 100);
   
-  const projectPercent = billingInfo.limits.maxProjects === Infinity
+  const projectPercent = billingInfo.limits.checks.projects.limit === Infinity
     ? 0
-    : Math.min(100, (billingInfo.limits.checks.projects.current / billingInfo.limits.maxProjects) * 100);
+    : Math.min(100, (billingInfo.limits.checks.projects.current / billingInfo.limits.checks.projects.limit) * 100);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">

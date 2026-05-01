@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { marketingActivities, marketingActivityTypeEnum, marketingActivityStatusEnum } from '@/db/schema';
+import { marketingActivities } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 import { authenticate } from '@/lib/auth';
 import Link from 'next/link';
@@ -13,9 +13,9 @@ export default async function MarketingActivitiesPage() {
   }
 
   const t = await getTranslations('admin');
-  const activities = await db.select()
-    .from(marketingActivities)
-    .orderBy(desc(marketingActivities.createdAt));
+  const activities = await db.query.marketingActivities.findMany({
+    orderBy: [desc(marketingActivities.createdAt)],
+  });
 
   const typeLabels: Record<string, string> = {
     'email_campaign': '📧 Email Campaign',
@@ -106,7 +106,7 @@ export default async function MarketingActivitiesPage() {
                       )}
                     </td>
                     <td className="p-4">
-                      <span className="text-sm">${(activity.budgetCents / 100).toFixed(2)}</span>
+                      <span className="text-sm">${((activity.budgetCents ?? 0) / 100).toFixed(2)}</span>
                     </td>
                     <td className="p-4 text-right">
                       <button className="text-blue-400 hover:text-blue-300 text-sm mr-3">Edit</button>

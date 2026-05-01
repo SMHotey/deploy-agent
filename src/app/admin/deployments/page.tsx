@@ -54,7 +54,7 @@ export default async function AdminDeploymentsPage() {
               </tr>
             </thead>
             <tbody>
-              {allDeployments.map((d) => (
+              {allDeployments.map((d: any) => (
                 <tr key={d.id} className="border-t border-slate-700/50">
                   <td className="p-4">{d.id}</td>
                   <td className="p-4">{d.project?.name || 'Unknown'}</td>

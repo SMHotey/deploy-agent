@@ -19,8 +19,12 @@ export interface TokenPair {
   expiresIn: number;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.ENCRYPTION_KEY || 'change-me-jwt-secret';
+const JWT_SECRET = process.env.JWT_SECRET || process.env.ENCRYPTION_KEY;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET or ENCRYPTION_KEY must be set in environment variables');
+}
 
 /**
  * Hash password
@@ -40,10 +44,12 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * Generate access token (JWT)
  */
 export function generateAccessToken(user: AuthUser): string {
-  const secret = (process.env.JWT_SECRET || process.env.ENCRYPTION_KEY || 'change-me-jwt-secret') as string;
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET or ENCRYPTION_KEY must be set in environment variables');
+  }
   return jwt.sign(
     { sub: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin } as object,
-    secret,
+    JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN } as any
   );
 }
@@ -53,8 +59,10 @@ export function generateAccessToken(user: AuthUser): string {
  */
 export function verifyToken(token: string): AuthUser | null {
   try {
-    const secret = (process.env.JWT_SECRET || process.env.ENCRYPTION_KEY || 'change-me-jwt-secret') as string;
-    const decoded = jwt.verify(token, secret) as any;
+    if (!JWT_SECRET) {
+      return null;
+    }
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
     return { 
       id: decoded.sub, 
       email: decoded.email || '', 
@@ -280,11 +288,6 @@ export async function authenticateWithSupabase(
  * Auth middleware for API routes
  */
 export async function authenticate(request: Request): Promise<AuthUser | null> {
-  // TEMP: Disable auth for testing if flag is set
-  if (process.env.DISABLE_AUTH === 'true') {
-    return { id: 1, email: 'test@test.com', name: 'Test User', isAdmin: true };
-  }
-
   const authHeader = request.headers.get('authorization');
   
   if (!authHeader?.startsWith('Bearer ')) {

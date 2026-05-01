@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import Redis from 'ioredis';
 
 interface Config {
   databaseUrl: string;
@@ -105,7 +106,6 @@ export async function validateRedis(config: Config): Promise<boolean> {
   if (!config.redisUrl) return false;
 
   try {
-    const Redis = require('ioredis');
     const redis = new Redis(config.redisUrl, { connectTimeout: 5000 });
     await redis.ping();
     redis.disconnect();

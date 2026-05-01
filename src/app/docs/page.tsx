@@ -94,7 +94,7 @@ export default async function DocsPage() {
               {docs.map((doc) => (
                 <Link
                   key={doc.slug}
-                  href={/docs/}
+                  href={`/docs/${doc.slug}`}
                   className="group flex items-start gap-4 rounded-xl border border-border/50 bg-card/30 p-4 transition-all duration-300 hover:border-blue-500/30 hover:bg-card/50"
                 >
                   <div className="flex-1">

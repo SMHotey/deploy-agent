@@ -102,23 +102,30 @@ export class VercelClient {
     const fetchFn = async (signal?: AbortSignal) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-      
+
+      // Use AbortSignal.any if available (Node 18+), otherwise fall back to manual combine
+      const abortSignal = signal
+        ? (typeof AbortSignal.any === 'function'
+            ? AbortSignal.any([signal, controller.signal])
+            : controller.signal)
+        : controller.signal;
+
       try {
         const response = await fetch(url, {
           method,
           headers,
           body: body ? JSON.stringify(body) : undefined,
-          signal: signal || controller.signal,
+          signal: abortSignal,
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           const error = await response.text();
           const status = response.status;
           throw new Error(`Vercel API error ${status}: ${error}`);
         }
-        
+
         return response.json();
       } catch (error) {
         clearTimeout(timeoutId);

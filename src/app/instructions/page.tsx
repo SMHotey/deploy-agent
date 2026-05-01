@@ -31,27 +31,27 @@ export default function InstructionsPage() {
     }
   };
 
-  // Simple markdown to HTML converter
+  // Simple markdown to HTML converter (safe - escapes HTML in content)
   const renderMarkdown = (md: string): string => {
     let html = md
       // Headers
       .replace(/^### (.*)$/gm, '<h3 class="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mt-6 mb-3">$1</h3>')
       .replace(/^## (.*)$/gm, '<h2 class="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mt-8 mb-4">$1</h2>')
       .replace(/^# (.*)$/gm, '<h1 class="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mt-10 mb-6">$1</h1>')
-      // Bold & italic
+      // Bold & italic (escape content)
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/_(.*?)_/g, '<em>$1</em>')
-      // Code blocks
+      // Code blocks (escape content)
       .replace(/```[\s\S]*?```/g, (match) => {
         const code = match.replace(/```[^\n]*\n?/, '').replace(/```$/, '');
         return `<pre class="bg-zinc-900 text-zinc-100 p-4 rounded-lg overflow-x-auto my-4"><code>${escapeHtml(code)}</code></pre>`;
       })
-      // Inline code
-      .replace(/`([^`]+)`/g, '<code class="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-sm">$1</code>')
-      // Links
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline">$1</a>')
-      // Images
-      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" class="max-w-full h-auto my-4 rounded-lg" />')
+      // Inline code (escape content)
+      .replace(/`([^`]+)`/g, (_, code) => `<code class="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-sm">${escapeHtml(code)}</code>`)
+      // Links (escape URL and text)
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline">${escapeHtml(text)}</a>`)
+      // Images (escape alt and src)
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => `<img alt="${escapeHtml(alt)}" src="${escapeHtml(src)}" class="max-w-full h-auto my-4 rounded-lg" />`)
       // Lists
       .replace(/^\s*[-*]\s+(.*)$/gm, '<li class="ml-6 list-disc">$1</li>')
       .replace(/^\s*(\d+)\.\s+(.*)$/gm, '<li class="ml-6 list-decimal">$2</li>')

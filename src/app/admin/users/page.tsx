@@ -64,7 +64,7 @@ export default async function AdminUsersPage() {
                     )}
                   </td>
                   <td className="p-4">
-                    {user.teamMemberships.map((tm) => tm.team.name).join(', ') || '-'}
+                    {(user as any).teamMemberships?.map((tm: any) => tm.team.name).join(', ') || '-'}
                   </td>
                   <td className="p-4">
                     {!user.isAdmin ? (

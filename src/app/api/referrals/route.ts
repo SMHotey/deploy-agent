@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
       },
       referrals: userReferrals.map((r) => ({
         id: r.id,
-        referredEmail: r.referred?.email || 'unknown',
+        referredEmail: (r.referred as any)?.email || 'unknown',
         status: r.status,
         createdAt: r.createdAt,
         rewardClaimed: r.rewardClaimed,

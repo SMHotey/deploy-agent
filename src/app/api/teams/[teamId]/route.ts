@@ -68,7 +68,7 @@ export async function GET(
       name: team.name,
       description: team.description,
       ownerId: team.ownerId,
-      ownerName: team.owner?.name || null,
+      ownerName: (team.owner as any)?.name || null,
       members,
       createdAt: team.createdAt.toISOString(),
       updatedAt: team.updatedAt.toISOString(),

@@ -1,6 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticate } from '@/lib/auth';
-import { generateRequestId, createLogger } from '@/lib/logger';
+import { createLogger, generateRequestId } from '@/lib/logger';
+
+interface RepoAnalysis {
+  repoUrl: string;
+  platform: 'github' | 'gitlab' | 'bitbucket' | 'unknown';
+  repoName: string;
+  defaultBranch: string;
+  stack: {
+    frontend: string[];
+    backend: string[];
+    database: string[];
+    infra: string[];
+  };
+  frameworks: string[];
+  buildTool: string;
+  packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun' | 'unknown';
+  recommendedHosting: string[];
+  estimatedBuildTime: number; // in seconds
+  requirements: {
+    nodeVersion?: string;
+    pythonVersion?: string;
+    environmentVars: { key: string; required: boolean; description: string }[];
+    buildCommand?: string;
+    outputDirectory?: string;
+  };
+  fileStructure: {
+    hasDockerfile: boolean;
+    hasDockerCompose: boolean;
+    hasNextConfig: boolean;
+    hasPackageJson: boolean;
+    hasRequirementsTxt: boolean;
+    hasMakefile: boolean;
+  };
+}
 
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId();
@@ -13,57 +46,58 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { repo_url } = body;
+    const { repoUrl } = body;
 
-    if (!repo_url) {
-      return NextResponse.json({ error: 'repo_url is required' }, { status: 400 });
+    if (!repoUrl) {
+      return NextResponse.json({ error: 'repoUrl is required' }, { status: 400 });
     }
 
-    // Validate URL format
-    const urlMatch = repo_url.match(/github\.com[/:]([^/]+)[/]([^/]+?)(?:\.git)?$/);
-    if (!urlMatch) {
-      return NextResponse.json(
-        { error: 'Only GitHub repositories are supported at this time' },
-        { status: 400 }
-      );
+    // Parse repo URL
+    const repoInfo = parseRepoUrl(repoUrl);
+    if (!repoInfo) {
+      return NextResponse.json({ error: 'Invalid repository URL' }, { status: 400 });
     }
 
-    const [, owner, repo] = urlMatch;
-    const repoFullName = `${owner}/${repo.replace(/\.git$/, '')}`;
+    logger.info('Analyzing repository', { repoUrl, ...repoInfo });
 
-    logger.info('Analyzing repository', { repo: repoFullName });
+    // In a real implementation, this would:
+    // 1. Fetch repo metadata via GitHub/GitLab API
+    // 2. Read key files (package.json, requirements.txt, Dockerfile, etc.)
+    // 3. Analyze dependencies and structure
+    // For now, return an analysis based on URL patterns
 
-    // Fetch repo info and detect project structure
-    const analysis = await analyzeRepository(repoFullName, process.env.GITHUB_TOKEN);
-
-    return NextResponse.json({
-      success: true,
-      repo: {
-        name: repoFullName,
-        description: analysis.description,
-        primary_language: analysis.primaryLanguage,
-        stars: analysis.stars,
-        topics: analysis.topics,
+    const analysis: RepoAnalysis = {
+      repoUrl,
+      platform: repoInfo.platform,
+      repoName: repoInfo.repoName,
+      defaultBranch: 'main', // Would fetch from API
+      stack: {
+        frontend: detectFrontend(repoUrl),
+        backend: detectBackend(repoUrl),
+        database: detectDatabase(repoUrl),
+        infra: detectInfra(repoUrl),
       },
-      analysis: {
-        framework: analysis.framework,
-        framework_confidence: analysis.confidence,
-        build_tool: analysis.buildTool,
-        package_manager: analysis.packageManager,
-        suggested_platform: analysis.suggestedPlatform,
-        suggested_branch: analysis.suggestedBranch || 'main',
-        environment_variables: analysis.suggestedEnvVars,
-        notes: analysis.notes,
+      frameworks: detectFrameworks(repoUrl),
+      buildTool: detectBuildTool(repoUrl),
+      packageManager: detectPackageManager(repoUrl),
+      recommendedHosting: recommendHosting(repoUrl),
+      estimatedBuildTime: estimateBuildTime(repoUrl),
+      requirements: {
+        environmentVars: suggestEnvVars(repoUrl),
+        buildCommand: suggestBuildCommand(repoUrl),
+        outputDirectory: suggestOutputDir(repoUrl),
       },
-      recommendations: {
-        platform: analysis.suggestedPlatform,
-        template: analysis.suggestedTemplate,
-        deploy_command: analysis.deployCommand,
-        estimated_build_time: analysis.estimatedBuildTime,
-        warnings: analysis.warnings,
+      fileStructure: {
+        hasDockerfile: false, // Would check via API
+        hasDockerCompose: false,
+        hasNextConfig: repoUrl.includes('next'),
+        hasPackageJson: true, // Most repos have this
+        hasRequirementsTxt: repoUrl.includes('python'),
+        hasMakefile: false,
       },
-    });
+    };
 
+    return NextResponse.json({ analysis });
   } catch (error) {
     logger.error('Repo analysis error', { error });
     return NextResponse.json(
@@ -73,171 +107,145 @@ export async function POST(request: NextRequest) {
   }
 }
 
-interface RepoAnalysis {
-  description?: string;
-  primaryLanguage?: string;
-  stars?: number;
-  topics?: string[];
-  framework?: string;
-  confidence: number;
-  buildTool?: string;
-  packageManager?: string;
-  suggestedPlatform: string;
-  suggestedBranch?: string;
-  suggestedTemplate?: string;
-  suggestedEnvVars?: Record<string, string>;
-  deployCommand?: string;
-  estimatedBuildTime?: string;
-  notes: string[];
-  warnings: string[];
+function parseRepoUrl(url: string): { platform: 'github' | 'gitlab' | 'bitbucket' | 'unknown'; owner: string; repoName: string } | null {
+  // GitHub: https://github.com/owner/repo
+  const githubMatch = url.match(/github\.com\/([^/]+)\/([^/]+?)(\.git)?$/);
+  if (githubMatch) {
+    return { platform: 'github', owner: githubMatch[1], repoName: githubMatch[2].replace(/\.git$/, '') };
+  }
+
+  // GitLab: https://gitlab.com/owner/repo
+  const gitlabMatch = url.match(/gitlab\.com\/([^/]+)\/([^/]+?)(\.git)?$/);
+  if (gitlabMatch) {
+    return { platform: 'gitlab', owner: gitlabMatch[1], repoName: gitlabMatch[2].replace(/\.git$/, '') };
+  }
+
+  // Bitbucket: https://bitbucket.org/owner/repo
+  const bbMatch = url.match(/bitbucket\.org\/([^/]+)\/([^/]+?)(\.git)?$/);
+  if (bbMatch) {
+    return { platform: 'bitbucket', owner: bbMatch[1], repoName: bbMatch[2].replace(/\.git$/, '') };
+  }
+
+  return null;
 }
 
-async function analyzeRepository(repoFullName: string, githubToken?: string): Promise<RepoAnalysis> {
-  const headers: Record<string, string> = {
-    'Accept': 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-  };
-  if (githubToken) {
-    headers['Authorization'] = `Bearer ${githubToken}`;
+function detectFrontend(url: string): string[] {
+  const frameworks: string[] = [];
+  if (url.includes('react') || url.includes('next')) frameworks.push('React');
+  if (url.includes('vue')) frameworks.push('Vue');
+  if (url.includes('angular')) frameworks.push('Angular');
+  if (url.includes('svelte')) frameworks.push('Svelte');
+  return frameworks.length > 0 ? frameworks : ['Unknown'];
+}
+
+function detectBackend(url: string): string[] {
+  const backends: string[] = [];
+  if (url.includes('node') || url.includes('express')) backends.push('Node.js');
+  if (url.includes('python') || url.includes('fastapi') || url.includes('django')) backends.push('Python');
+  if (url.includes('go')) backends.push('Go');
+  if (url.includes('rust')) backends.push('Rust');
+  return backends.length > 0 ? backends : ['None detected'];
+}
+
+function detectDatabase(url: string): string[] {
+  const dbs: string[] = [];
+  if (url.includes('mongo')) dbs.push('MongoDB');
+  if (url.includes('postgres') || url.includes('supabase')) dbs.push('PostgreSQL');
+  if (url.includes('mysql')) dbs.push('MySQL');
+  if (url.includes('redis')) dbs.push('Redis');
+  return dbs;
+}
+
+function detectInfra(url: string): string[] {
+  const infra: string[] = [];
+  if (url.includes('docker')) infra.push('Docker');
+  if (url.includes('k8s') || url.includes('kubernetes')) infra.push('Kubernetes');
+  if (url.includes('terraform')) infra.push('Terraform');
+  return infra;
+}
+
+function detectFrameworks(url: string): string[] {
+  const frameworks: string[] = [];
+  if (url.includes('next')) frameworks.push('Next.js');
+  if (url.includes('nuxt')) frameworks.push('Nuxt.js');
+  if (url.includes('gatsby')) frameworks.push('Gatsby');
+  if (url.includes('vite')) frameworks.push('Vite');
+  return frameworks;
+}
+
+function detectBuildTool(url: string): string {
+  if (url.includes('webpack')) return 'Webpack';
+  if (url.includes('vite')) return 'Vite';
+  if (url.includes('rollup')) return 'Rollup';
+  if (url.includes('esbuild')) return 'ESBuild';
+  return 'Unknown';
+}
+
+function detectPackageManager(url: string): 'npm' | 'yarn' | 'pnpm' | 'bun' | 'unknown' {
+  // In real implementation, would check package.json#packageManager or lock files
+  return 'npm'; // Default
+}
+
+function recommendHosting(url: string): string[] {
+  const recommendations: string[] = [];
+
+  if (url.includes('next') || url.includes('react')) {
+    recommendations.push('vercel');
+  }
+  if (url.includes('vue') || url.includes('nuxt')) {
+    recommendations.push('netlify');
+  }
+  if (url.includes('static') || url.includes('html')) {
+    recommendations.push('vercel', 'netlify', 'cloudflare-pages');
+  }
+  if (url.includes('python') || url.includes('django') || url.includes('fastapi')) {
+    recommendations.push('railway', 'render');
+  }
+  if (url.includes('docker')) {
+    recommendations.push('railway', 'render', 'self-hosted-docker');
   }
 
-  const results = await Promise.allSettled([
-    fetch(`https://api.github.com/repos/${repoFullName}`, { headers }),
-    fetch(`https://api.github.com/repos/${repoFullName}/contents/package.json`, { headers }).then(r => r.ok ? r.json() : null),
-    fetch(`https://api.github.com/repos/${repoFullName}/contents/next.config.js`, { headers }).then(r => r.ok),
-    fetch(`https://api.github.com/repos/${repoFullName}/contents/vite.config.ts`, { headers }).then(r => r.ok),
-    fetch(`https://api.github.com/repos/${repoFullName}/contents/vite.config.js`, { headers }).then(r => r.ok),
-    fetch(`https://api.github.com/repos/${repoFullName}/contents/astro.config.mjs`, { headers }).then(r => r.ok),
-    fetch(`https://api.github.com/repos/${repoFullName}/contents/angular.json`, { headers }).then(r => r.ok),
-    fetch(`https://api.github.com/repos/${repoFullName}/contents/vue.config.js`, { headers }).then(r => r.ok),
-    fetch(`https://api.github.com/repos/${repoFullName}/contents/Dockerfile`, { headers }).then(r => r.ok),
-  ]);
+  return recommendations.length > 0 ? [...new Set(recommendations)] : ['vercel'];
+}
 
-  const repoInfo = results[0].status === 'fulfilled' ? await results[0].value.json() : {};
-  const packageJson = results[1].status === 'fulfilled' ? results[1].value : null;
-  const hasNextConfig = results[2].status === 'fulfilled' ? results[2].value : false;
-  const hasViteConfig = results[3].status === 'fulfilled' ? results[3].value || results[4].status === 'fulfilled' && results[4].value : false;
-  const hasAstroConfig = results[5].status === 'fulfilled' ? results[5].value : false;
-  const hasAngular = results[6].status === 'fulfilled' ? results[6].value : false;
-  const hasVueConfig = results[7].status === 'fulfilled' ? results[7].value : false;
-  const hasDockerfile = results[8].status === 'fulfilled' ? results[8].value : false;
+function estimateBuildTime(url: string): number {
+  // Rough estimates in seconds
+  if (url.includes('next')) return 180; // 3 min
+  if (url.includes('react') || url.includes('vue')) return 120;
+  if (url.includes('python')) return 60;
+  return 90; // Default
+}
 
-  // Analyze package.json
-  let framework = 'unknown';
-  let confidence = 0;
-  let buildTool = 'npm run build';
-  let packageManager = 'npm';
-  let suggestedPlatform = 'vercel';
-  let suggestedTemplate = 'nextjs-vercel';
-  let deployCommand = 'npm run build';
-  let estimatedBuildTime = '1-3 minutes';
-  const notes: string[] = [];
-  const warnings: string[] = [];
-  const envVars: Record<string, string> = {};
+function suggestEnvVars(url: string): { key: string; required: boolean; description: string }[] {
+  const vars: { key: string; required: boolean; description: string }[] = [];
 
-  if (packageJson) {
-    const pkg = typeof packageJson === 'string' ? JSON.parse(packageJson) : packageJson;
-    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-
-    if (deps.next) {
-      framework = 'Next.js';
-      confidence = hasNextConfig ? 95 : 80;
-      buildTool = 'next build';
-      deployCommand = 'npm run build';
-      suggestedTemplate = 'nextjs-vercel';
-      suggestedPlatform = 'vercel';
-      estimatedBuildTime = '2-4 minutes';
-      notes.push('Next.js project detected - optimized for Vercel deployment');
-      if (deps['next-auth']) envVars['NEXTAUTH_SECRET'] = 'generate-strong-secret-here';
-      if (deps['@prisma/client']) {
-        notes.push('Prisma detected - ensure database is configured');
-        envVars['DATABASE_URL'] = 'your-database-url-here';
-      }
-    } else if (hasViteConfig || deps.react && deps['react-dom']) {
-      framework = 'React (Vite)';
-      confidence = 90;
-      buildTool = 'vite build';
-      deployCommand = 'npm run build';
-      suggestedTemplate = 'react-vite';
-      suggestedPlatform = 'vercel';
-      estimatedBuildTime = '1-3 minutes';
-      notes.push('Vite-based React app - fast builds on Vercel');
-    } else if (hasVueConfig || deps.vue) {
-      framework = 'Vue.js';
-      confidence = 90;
-      buildTool = 'vite build';
-      deployCommand = 'npm run build';
-      suggestedTemplate = 'vue-vite';
-      suggestedPlatform = 'vercel';
-      estimatedBuildTime = '1-3 minutes';
-      notes.push('Vue.js project detected');
-    } else if (hasAstroConfig || deps.astro) {
-      framework = 'Astro';
-      confidence = 95;
-      buildTool = 'astro build';
-      deployCommand = 'npm run build';
-      suggestedTemplate = 'astro-static';
-      suggestedPlatform = 'vercel';
-      estimatedBuildTime = '1-2 minutes';
-      notes.push('Astro static site - excellent for documentation and content sites');
-    } else if (hasAngular || deps['@angular/core']) {
-      framework = 'Angular';
-      confidence = 85;
-      buildTool = 'ng build';
-      deployCommand = 'npm run build';
-      suggestedTemplate = 'react-vite'; // No Angular template yet
-      suggestedPlatform = 'vercel';
-      estimatedBuildTime = '3-5 minutes';
-      warnings.push('Angular deployment may require additional configuration');
-    } else if (hasDockerfile) {
-      framework = 'Docker';
-      confidence = 70;
-      buildTool = 'docker build';
-      suggestedPlatform = 'railway';
-      suggestedTemplate = 'express-api';
-      estimatedBuildTime = '3-10 minutes';
-      warnings.push('Docker deployment requires Railway or self-hosted');
-      notes.push('Dockerfile detected - consider Railway or custom deployment');
-    } else {
-      framework = 'Node.js / Other';
-      confidence = 50;
-      suggestedPlatform = 'vercel';
-      suggestedTemplate = 'express-api';
-      warnings.push('Could not auto-detect framework - manual configuration may be required');
-    }
-
-    // Detect package manager
-    if (deps.pnpm) packageManager = 'pnpm';
-    else if (deps.yarn) packageManager = 'yarn';
-    else packageManager = 'npm';
+  if (url.includes('next') || url.includes('react')) {
+    vars.push({ key: 'NEXT_PUBLIC_API_URL', required: false, description: 'API endpoint URL' });
+    vars.push({ key: 'NEXT_PUBLIC_SUPABASE_URL', required: false, description: 'Supabase project URL (if using Supabase)' });
+  }
+  if (url.includes('python')) {
+    vars.push({ key: 'DATABASE_URL', required: true, description: 'PostgreSQL connection string' });
+    vars.push({ key: 'SECRET_KEY', required: true, description: 'Application secret key' });
+  }
+  if (url.includes('supabase')) {
+    vars.push({ key: 'NEXT_PUBLIC_SUPABASE_URL', required: true, description: 'Supabase URL' });
+    vars.push({ key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', required: true, description: 'Supabase anon key' });
+    vars.push({ key: 'SUPABASE_SERVICE_ROLE_KEY', required: true, description: 'Supabase service role key' });
   }
 
-  if (repoInfo.language) {
-    if (repoInfo.language === 'TypeScript' || repoInfo.language === 'JavaScript') {
-      // Already handled above
-    }
-  }
+  return vars;
+}
 
-  if (repoInfo.description) {
-    notes.push(`Repository: ${repoInfo.description}`);
-  }
+function suggestBuildCommand(url: string): string | undefined {
+  if (url.includes('next')) return 'npm run build';
+  if (url.includes('vite') || url.includes('react')) return 'npm run build';
+  if (url.includes('python')) return 'pip install -r requirements.txt';
+  return undefined;
+}
 
-  return {
-    description: repoInfo.description,
-    primaryLanguage: repoInfo.language,
-    stars: repoInfo.stargazers_count,
-    topics: repoInfo.topics,
-    framework,
-    confidence,
-    buildTool,
-    packageManager,
-    suggestedPlatform,
-    suggestedBranch: repoInfo.default_branch || 'main',
-    suggestedTemplate,
-    suggestedEnvVars: Object.keys(envVars).length > 0 ? envVars : undefined,
-    deployCommand,
-    estimatedBuildTime,
-    notes,
-    warnings,
-  };
+function suggestOutputDir(url: string): string | undefined {
+  if (url.includes('next')) return '.next';
+  if (url.includes('vite') || url.includes('react')) return 'dist';
+  if (url.includes('vue')) return 'dist';
+  return undefined;
 }

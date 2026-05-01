@@ -55,14 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // TEMP: Disable auth if flag is set
-    if (process.env.NEXT_PUBLIC_DISABLE_AUTH === 'true') {
-      localStorage.setItem('accessToken', 'fake-token-for-testing');
-      setUser({ id: 1, email: 'test@test.com', name: 'Test User' });
-      setIsLoading(false);
-      return;
-    }
-
     const token = getToken();
     if (token) {
       fetchUser(token).finally(() => setIsLoading(false));
