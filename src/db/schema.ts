@@ -464,3 +464,145 @@ export type NewAffiliateConversion = typeof affiliateConversions.$inferInsert;
 
 export type MarketingActivity = typeof marketingActivities.$inferSelect;
 export type NewMarketingActivity = typeof marketingActivities.$inferInsert;
+
+// ============================================
+// REVIEW & TESTING MARKETPLACE SYSTEM
+// ============================================
+
+// Categories for projects
+export const projectCategoriesEnum = pgEnum('project_category', [
+  'saas', 'e-commerce', 'blog', 'portfolio', 'web-app', 'mobile-app', 
+  'api', 'dashboard', 'landing-page', 'other'
+]);
+
+// Project submissions for review/testing
+export const projectSubmissions = pgTable('project_submissions', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => projects.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  category: projectCategoriesEnum('category').notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description').notNull(),
+  liveUrl: varchar('live_url', { length: 500 }),
+  repoUrl: varchar('repo_url', { length: 500 }),
+  demoCredentials: jsonb('demo_credentials'), // { username, password } for testers
+  testingInstructions: text('testing_instructions'),
+  status: varchar('status', { length: 50 }).default('pending').notNull(), // pending, approved, rejected, completed
+  pointsReward: integer('points_reward').default(100).notNull(), // points for testing
+  maxTesters: integer('max_testers').default(5).notNull(),
+  currentTesters: integer('current_testers').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Reviews and testing reports
+export const reviews = pgTable('reviews', {
+  id: serial('id').primaryKey(),
+  submissionId: integer('submission_id').references(() => projectSubmissions.id).notNull(),
+  testerId: integer('tester_id').references(() => users.id).notNull(),
+  rating: integer('rating').notNull(), // 1-5 stars
+  title: varchar('title', { length: 255 }).notNull(),
+  content: text('content').notNull(),
+  pros: text('pros'), // JSON array of pros
+  cons: text('cons'), // JSON array of cons
+  bugsFound: integer('bugs_found').default(0),
+  screenshots: jsonb('screenshots'), // Array of screenshot URLs
+  videoUrl: varchar('video_url', { length: 500 }),
+  timeSpentMinutes: integer('time_spent_minutes'),
+  testingChecklist: jsonb('testing_checklist'), // { functionality: true, ui: true, performance: false, etc. }
+  status: varchar('status', { length: 50 }).default('pending').notNull(), // pending, approved, rejected
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Review ratings (project owner rates the quality of review)
+export const reviewRatings = pgTable('review_ratings', {
+  id: serial('id').primaryKey(),
+  reviewId: integer('review_id').references(() => reviews.id).notNull(),
+  ratedBy: integer('rated_by').references(() => users.id).notNull(), // project owner
+  qualityScore: integer('quality_score').notNull(), // 1-5 (how useful was the review)
+  pointsAwarded: integer('points_awarded').default(0).notNull(),
+  feedback: text('feedback'), // feedback to tester
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// User points (internal currency)
+export const userPoints = pgTable('user_points', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull().unique(),
+  totalPoints: integer('total_points').default(0).notNull(),
+  availablePoints: integer('available_points').default(0).notNull(),
+  spentPoints: integer('spent_points').default(0).notNull(),
+  level: integer('level').default(1).notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Points transactions (history)
+export const pointsTransactions = pgTable('points_transactions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  amount: integer('amount').notNull(), // positive = earned, negative = spent
+  type: varchar('type', { length: 50 }).notNull(), // 'review', 'review_rating', 'bonus', 'spent'
+  referenceId: integer('reference_id'), // review_id, etc.
+  referenceType: varchar('reference_type', { length: 50 }), // 'review', 'review_rating'
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Leaderboard cache (for performance)
+export const leaderboard = pgTable('leaderboard', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  category: varchar('category', { length: 50 }), // null = overall, or specific category
+  points: integer('points').default(0).notNull(),
+  reviewsCount: integer('reviews_count').default(0).notNull(),
+  avgRatingGiven: integer('avg_rating_given').default(0), // average rating they give
+  avgQualityScore: integer('avg_quality_score').default(0), // average quality score they receive
+  rank: integer('rank'),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Relations
+export const projectSubmissionsRelations = relations(projectSubmissions, ({ one, many }) => ({
+  project: one(projects, { fields: [projectSubmissions.projectId], references: [projects.id] }),
+  user: one(users, { fields: [projectSubmissions.userId], references: [users.id] }),
+  reviews: many(reviews),
+}));
+
+export const reviewsRelations = relations(reviews, ({ one, many }) => ({
+  submission: one(projectSubmissions, { fields: [reviews.submissionId], references: [projectSubmissions.id] }),
+  tester: one(users, { fields: [reviews.testerId], references: [users.id] }),
+  rating: one(reviewRatings, { fields: [reviews.id], references: [reviewRatings.reviewId] }),
+}));
+
+export const reviewRatingsRelations = relations(reviewRatings, ({ one }) => ({
+  review: one(reviews, { fields: [reviewRatings.reviewId], references: [reviews.id] }),
+  rater: one(users, { fields: [reviewRatings.ratedBy], references: [users.id] }),
+}));
+
+export const userPointsRelations = relations(userPoints, ({ one, many }) => ({
+  user: one(users, { fields: [userPoints.userId], references: [users.id] }),
+  transactions: many(pointsTransactions),
+}));
+
+export const pointsTransactionsRelations = relations(pointsTransactions, ({ one }) => ({
+  user: one(users, { fields: [pointsTransactions.userId], references: [users.id] }),
+}));
+
+export const leaderboardRelations = relations(leaderboard, ({ one }) => ({
+  user: one(users, { fields: [leaderboard.userId], references: [users.id] }),
+}));
+
+// Type exports for new tables
+export type ProjectSubmission = typeof projectSubmissions.$inferSelect;
+export type NewProjectSubmission = typeof projectSubmissions.$inferInsert;
+export type Review = typeof reviews.$inferSelect;
+export type NewReview = typeof reviews.$inferInsert;
+export type ReviewRating = typeof reviewRatings.$inferSelect;
+export type NewReviewRating = typeof reviewRatings.$inferInsert;
+export type UserPoints = typeof userPoints.$inferSelect;
+export type NewUserPoints = typeof userPoints.$inferInsert;
+export type PointsTransaction = typeof pointsTransactions.$inferSelect;
+export type NewPointsTransaction = typeof pointsTransactions.$inferInsert;
+export type LeaderboardEntry = typeof leaderboard.$inferSelect;
+export type NewLeaderboardEntry = typeof leaderboard.$inferInsert;
