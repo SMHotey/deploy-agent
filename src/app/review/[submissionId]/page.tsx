@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import AIAssistant from '@/components/ai-assistant';
 
 export default function ReviewPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const submissionId = searchParams.get('submissionId');
   
   const [submission, setSubmission] = useState<any>(null);
@@ -94,6 +97,20 @@ export default function ReviewPage() {
             <span className="text-green-400">{submission.pointsReward} pts</span>
           </div>
         </div>
+
+        {/* Author Actions - only show if user is the project owner */}
+        {user?.id === submission.userId && (
+          <div className="mb-8">
+            <AIAssistant 
+              type="review-feedback" 
+              reviewId={parseInt(submissionId!)} 
+              className="mb-6"
+            />
+            <p className="text-sm text-zinc-500 mt-2">
+              Get AI-powered recommendations based on tester reviews to improve your project.
+            </p>
+          </div>
+        )}
 
         {error && <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6 text-red-400">{error}</div>}
 

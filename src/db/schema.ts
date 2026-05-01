@@ -54,7 +54,8 @@ export const projects = pgTable('projects', {
   userId: integer('user_id').notNull().references(() => users.id),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  repoUrl: varchar('repo_url', { length: 500 }).notNull(),
+  repoUrl: varchar('repo_url', { length: 500 }), // Nullable for AI-generated code uploads
+  source: varchar('source', { length: 50 }).default('git'), // 'git' | 'upload'
   platform: platformEnum('platform').default('vercel').notNull(),
   environment: environmentEnum('environment').default('production').notNull(),
   

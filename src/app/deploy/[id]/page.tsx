@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import AIAssistant from '@/components/ai-assistant';
 
 interface Deployment {
   id: number;
@@ -292,6 +293,15 @@ export default function DeploymentDetailsPage() {
             </pre>
           </div>
         </div>
+
+        {/* AI Analysis (only show if deployment has errors) */}
+        {deployment?.status === 'ERROR' && deployment?.id && (
+          <AIAssistant 
+            type="deploy-error" 
+            deploymentId={deployment.id} 
+            className="mt-8"
+          />
+        )}
       </div>
     </div>
   );

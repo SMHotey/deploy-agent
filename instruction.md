@@ -487,3 +487,133 @@ psql -U postgres -d deploy_agent
 ---
 
 **Р“РѕС‚РѕРІРѕ! РўРµРїРµСЂСЊ Сѓ РІР°СЃ РµСЃС‚СЊ РїРѕР»РЅРѕСЃС‚СЊСЋ РЅР°СЃС‚СЂРѕРµРЅРЅС‹Р№ Deploy Agent СЃ С„СѓРЅРєС†РёРѕРЅР°Р»РѕРј Review Marketplace.**
+
+
+## 10. AI-сгенерированный код (NEW!) 
+
+### 10.1 Обзор функции
+
+**AI-сгенерированный код** - новый поток создания проектов для пользователей, которые генерируют код с помощью Cursor, Replit, ChatGPT и других AI-инструментов, и не имеют git-репозитория.
+
+### 10.2 Выбор способа создания проекта
+
+На странице /projects/new теперь две карточки для выбора:
+1. **'I have a Git repository'** - существующий поток (переход на /deploy)
+2. **'I generated code with AI'** - новый поток (форма загрузки архива)
+
+### 10.3 Загрузка кода
+
+**Поддерживаемые форматы**:
+- .zip (рекомендуется)
+- .tar.gz, .tgz
+- .tar
+- .rar (требуется 7-Zip)
+
+**Ограничения**:
+- Максимальный размер: 50 МБ
+- Автоматическое извлечение архива
+
+**Процесс**:
+1. Пользователь выбирает файл архива
+2. Опционально: описание проекта
+3. Опционально: какой AI-инструмент использовался (Cursor, Replit, ChatGPT, etc.)
+4. Нажимает 'Upload & Analyze'
+5. Файл загружается, распаковывается, анализируется
+6. Создается проект с source = 'upload' в базе данных
+
+### 10.4 API эндпоинт
+
+**POST /api/projects/ai-start**
+
+Content-Type: multipart/form-data 
+
+Поля формы:
+- ile (обязательно) - архив с кодом
+- description (опционально) - описание проекта
+- iTool (опционально) - использованный AI-инструмент
+
+**Ответ**:
+`json
+{
+  'projectId': 123,
+  'projectName': 'AI-Generated Project',
+  'recommendedPlatform': 'vercel',
+  'detectedStack': { 'frontend': ['React'], 'backend': [], ... },
+  'frameworks': ['Next.js'],
+  'buildCommand': 'npm run build',
+  'outputDirectory': '.next',
+  'environmentVars': [...],
+  'message': 'Project created successfully. You can now configure deployment.'
+}
+` 
+
+### 10.5 Анализ кода
+
+После распаковки архива сервер анализирует код:
+
+1. **package.json** - определение фреймворка (Next.js, React, Vue, Angular), пакетного менеджера (npm, yarn, pnpm, bun)
+2. **requirements.txt** - определение Python-стека (Django, Flask, FastAPI)
+3. **Dockerfile** - определение Docker-инфраструктуры
+4. **docker-compose.yml** - многоконтейнерные приложения
+5. **next.config.js/ts** - конфигурация Next.js
+
+**Результат анализа**:
+- Рекомендуемая платформа (vercel, netlify, railway, render)
+- Команды сборки и выходная директория
+- Необходимые переменные окружения
+- Обнаруженные фреймворки и стек технологий
+
+### 10.6 Структура базы данных
+
+В таблицу projects добавлены поля:
+- epoUrl - теперь NULLABLE (для загруженного кода)
+- source - VARCHAR(50), DEFAULT 'git' (возможные значения: 'git', 'upload')
+
+**Пример записи для загруженного кода**:
+`sql
+INSERT INTO projects (name, repo_url, source, platform, user_id, description)
+VALUES ('My AI Project', NULL, 'upload', 'vercel', 1, 'AI Tool: Cursor | Source: Uploaded archive (code.zip)');
+` 
+
+### 10.7 Безопасность
+
+- **Временные файлы**: Автоматически удаляются через 1 час после загрузки
+- **Валидация**: Проверка расширения файла и размера (50 МБ максимум)
+- **Аутентификация**: Эндпоинт защищен NextAuth (JWT токен)
+- **Изоляция**: Файлы распаковываются во временную директорию
+
+### 10.8 Пример использования
+
+**Сценарий: Пользователь сгенерировал Next.js приложение в Cursor**
+
+1. Заходит на http://localhost:3000/projects/new
+2. Выбирает карточку 'I generated code with AI'
+3. Загружает my-next-app.zip (размер 15 МБ)
+4. Указывает: 'Next.js blog with Supabase' в описании
+5. Указывает: 'Cursor' в поле AI tool
+6. Нажимает 'Upload & Analyze'
+7. Через 10-15 секунд получает:
+   - Project ID: 456
+   - Recommended platform: vercel
+   - Build command: npm run build
+   - Output directory: .next
+   - Env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+8. Перенаправляется на /projects/456 для настройки деплоя
+
+### 10.9 Установка зависимостей
+
+`ash
+npm install tar
+# Для .rar файлов (опционально):
+# Установите 7-Zip и добавьте в PATH
+` 
+
+**Проверка**:
+`ash
+npm list tar
+# Должно показать: tar@x.x.x
+` 
+
+---
+
+## 11. Администрирование
