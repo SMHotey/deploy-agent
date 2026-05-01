@@ -22,6 +22,33 @@ A production-ready deployment automation agent that deploys git repositories to 
 - **Startup Features** - Readiness validation, project templates, health scores, budget control
 - **Enhanced Dashboards** - Analytics export (CSV/JSON), financial analytics, system health monitoring
 
+### 🆕 New: Review & Testing Marketplace (2026-05)
+- **Project Submissions** - Users submit projects for community review and testing
+- **Review System** - Testers provide detailed feedback with ratings, screenshots, bug reports
+- **Points System** - Earn points for quality reviews (10-100 points based on quality score)
+- **Leaderboard** - Overall and per-category rankings with cached ranks
+- **Review Rating** - Project owners rate review quality (1-5 stars) to award points
+- **Points Economy** - Spend points on premium features, track transaction history
+- **Categories** - SaaS, E-commerce, Blog, Portfolio, Web App, Mobile App, API, Dashboard, Landing Page
+
+**Review Marketplace API Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|------------|
+| POST | `/api/projects/submit-for-review` | Submit project for review |
+| GET | `/api/projects/submit-for-review` | List projects available for review |
+| POST | `/api/reviews` | Submit a review for a project |
+| GET | `/api/reviews?submissionId=...` | Get reviews for a submission |
+| POST | `/api/reviews/rate` | Rate review quality & award points |
+| GET | `/api/leaderboard` | Get leaderboard rankings |
+| POST | `/api/leaderboard` | Get user points & transactions |
+
+**Points Calculation:**
+- Quality Score 5/5 → 100 base points
+- Quality Score 4/5 → 50 base points  
+- Quality Score 3/5 → 30 base points
+- Bonus: +20 for screenshots, +15 for testing checklist, +10 for high rating
+
 ## Quick Start
 
 ### 1. Clone and install
