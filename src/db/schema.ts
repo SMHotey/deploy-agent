@@ -347,6 +347,7 @@ export const hostingProviders = pgTable('hosting_providers', {
   description: text('description'),
   logoUrl: varchar('logo_url', { length: 500 }),
   affiliateUrl: varchar('affiliate_url', { length: 500 }),
+  referralCode: varchar('referral_code', { length: 100 }), // e.g., "our_code" for ?ref=our_code
   commissionRate: varchar('commission_rate', { length: 20 }), // e.g. "$20 per signup"
   commissionType: varchar('commission_type', { length: 20 }).default('cpa'), // cpa, cpc, revenue_share
   minPayout: integer('min_payout').default(50),
@@ -385,6 +386,17 @@ export const affiliateConversions = pgTable('affiliate_conversions', {
   externalId: varchar('external_id', { length: 100 }), // provider's conversion ID
   convertedAt: timestamp('converted_at').defaultNow().notNull(),
   paidAt: timestamp('paid_at'),
+});
+
+// Referral events tracking (for partner referrals)
+export const referralEvents = pgTable('referral_events', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id),
+  providerId: integer('provider_id').references(() => hostingProviders.id),
+  projectId: integer('project_id').references(() => projects.id),
+  eventType: varchar('event_type', { length: 50 }).notNull(), // 'click', 'signup', 'deployment'
+  metadata: jsonb('metadata'), // Additional data (e.g., { credits_earned: 20 })
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Startup templates table

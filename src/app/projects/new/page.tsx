@@ -5,6 +5,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { db } from '@/db';
+import { hostingProviders } from '@/db/schema';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -17,6 +20,24 @@ export default function NewProjectPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
   const [aiTool, setAiTool] = useState('');
+  const [providers, setProviders] = useState<any[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
+
+  useEffect(() => {
+    fetchProviders();
+  }, []);
+
+  const fetchProviders = async () => {
+    try {
+      const res = await fetch('/api/hosting-providers');
+      const data = await res.json();
+      if (res.ok) {
+        setProviders(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch providers', err);
+    }
+  };
 
   const handleGitClick = () => {
     router.push('/deploy');
@@ -114,6 +135,19 @@ export default function NewProjectPage() {
           setAiTool('');
           setUploadProgress(0);
 
+          // Track referral event if provider selected
+          if (selectedProvider) {
+            fetch('/api/referral/track', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                provider: selectedProvider,
+                userId: user?.id,
+                eventType: 'deployment',
+              }),
+            }).catch(err => console.error('Failed to track referral', err));
+          }
+
           // Redirect to project page after short delay
           setTimeout(() => {
             router.push(`/projects/${result.projectId}`);
@@ -159,6 +193,12 @@ export default function NewProjectPage() {
     router.push('/');
     return null;
   }
+
+  const getProviderReferralLink = (slug: string) => {
+    const provider = providers.find(p => p.slug === slug);
+    if (!provider?.referralCode) return null;
+    return `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/partners?provider=${slug}&ref=${provider.referralCode}`;
+  };
 
   return (
     <main className="min-h-screen bg-zinc-950">
@@ -212,6 +252,56 @@ export default function NewProjectPage() {
             </div>
           </div>
         </div>
+
+        {/* Referral Offer Banner */}
+        {providers.length > 0 && (
+          <div className="mt-8 bg-gradient-to-r from-blue-900/30 to-violet-900/30 border border-blue-700/50 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-zinc-100 mb-4">🎁 Special Hosting Offers</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {providers.slice(0, 3).map((provider) => (
+                <div key={provider.id} className="bg-zinc-900/50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    {provider.logoUrl && (
+                      <img src={provider.logoUrl} alt={provider.name} className="w-6 h-6" />
+                    )}
+                    <span className="font-medium text-zinc-100">{provider.name}</span>
+                  </div>
+                  {provider.referralCode ? (
+                    <a
+                      href={`${provider.affiliateUrl}?ref=${provider.referralCode}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                      onClick={() => {
+                        fetch('/api/referral/track', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            provider: provider.slug,
+                            userId: user?.id,
+                            eventType: 'click',
+                          }),
+                        }).catch(err => console.error('Track failed', err));
+                      }}
+                    >
+                      Get free credits →
+                    </a>
+                  ) : (
+                    <span className="text-sm text-zinc-500">No offer available</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 text-center">
+              <a
+                href="/partners"
+                className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                View all partner offers →
+              </a>
+            </div>
+          </div>
+        )}
 
         {showUploadForm && (
           <section aria-label="ai-upload" className="mt-12 bg-zinc-900 border border-zinc-800 rounded-xl p-6 md:p-8">

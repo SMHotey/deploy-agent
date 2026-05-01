@@ -41,6 +41,14 @@ export default function RootLayout({
                   </a>
                   .
                 </p>
+                <div className="flex items-center gap-4">
+                  <a
+                    href="/partners"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    View Partner Offers
+                  </a>
+                </div>
               </div>
             </footer>
           </div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { hostingProviders, affiliateClicks, affiliateConversions } from '@/db/schema';
+import { hostingProviders, affiliateClicks, affiliateConversions, referralEvents, users } from '@/db/schema';
 import { eq, count, sum, sql, and, gte } from 'drizzle-orm';
 import { authenticate } from '@/lib/auth';
 
@@ -24,9 +24,11 @@ export async function GET(request: NextRequest) {
         totalCommission: sum(affiliateConversions.commissionEarned),
         pendingCommission: sql<number>`SUM(CASE WHEN ${affiliateConversions.status} = 'pending' THEN ${affiliateConversions.commissionEarned} ELSE 0 END)`,
         paidCommission: sql<number>`SUM(CASE WHEN ${affiliateConversions.status} = 'paid' THEN ${affiliateConversions.commissionEarned} ELSE 0 END)`,
+        totalReferralEvents: count(referralEvents.id),
       })
       .from(affiliateClicks)
-      .leftJoin(affiliateConversions, eq(affiliateClicks.providerId, affiliateConversions.providerId));
+      .leftJoin(affiliateConversions, eq(affiliateClicks.providerId, affiliateConversions.providerId))
+      .leftJoin(referralEvents, eq(affiliateClicks.providerId, referralEvents.providerId));
 
     // Per-provider stats
     const providerStats = await db
@@ -75,12 +77,29 @@ export async function GET(request: NextRequest) {
       .groupBy(sql`DATE(${affiliateClicks.clickedAt})`)
       .orderBy(sql`DATE(${affiliateClicks.clickedAt})`);
 
+    // Recent referral events
+    const recentReferralEvents = await db
+      .select({
+        id: referralEvents.id,
+        providerName: hostingProviders.name,
+        eventType: referralEvents.eventType,
+        createdAt: referralEvents.createdAt,
+        userName: sql<string>`${users.name}`,
+      })
+      .from(referralEvents)
+      .leftJoin(hostingProviders, eq(referralEvents.providerId, hostingProviders.id))
+      .leftJoin(users, eq(referralEvents.userId, users.id))
+      .where(gte(referralEvents.createdAt, startDate))
+      .orderBy(sql`${referralEvents.createdAt} DESC`)
+      .limit(50);
+
     const stats = overallStats[0] || {
       totalClicks: 0,
       totalConversions: 0,
       totalCommission: 0,
       pendingCommission: 0,
       paidCommission: 0,
+      totalReferralEvents: 0,
     };
 
     return NextResponse.json({
@@ -88,9 +107,10 @@ export async function GET(request: NextRequest) {
         totalClicks: stats.totalClicks,
         totalConversions: stats.totalConversions,
         conversionRate: stats.totalClicks > 0 ? ((stats.totalConversions / stats.totalClicks) * 100).toFixed(2) : '0.00',
-        totalCommission: Number(stats.totalCommission || 0) / 100, // convert cents to dollars
+        totalCommission: Number(stats.totalCommission || 0) / 100,
         pendingCommission: Number(stats.pendingCommission || 0) / 100,
         paidCommission: Number(stats.paidCommission || 0) / 100,
+        totalReferralEvents: stats.totalReferralEvents,
       },
       providerStats: providerStats.map((p: any) => ({
         ...p,
@@ -99,6 +119,7 @@ export async function GET(request: NextRequest) {
         conversionRate: p.clicks > 0 ? ((Number(p.conversions) || 0) / p.clicks * 100).toFixed(2) : '0.00',
       })),
       recentConversions,
+      recentReferralEvents,
       clickTrends,
     });
   } catch (error) {

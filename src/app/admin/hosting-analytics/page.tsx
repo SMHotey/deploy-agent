@@ -79,12 +79,11 @@ export default async function HostingAnalyticsPage({
             <p className="text-3xl font-bold mt-2 text-blue-400">{summary.conversionRate}%</p>
           </div>
           <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700/50">
-            <h3 className="text-slate-400 text-sm uppercase">Total Commission</h3>
-            <p className="text-3xl font-bold mt-2 text-purple-400">${summary.totalCommission}</p>
+            <h3 className="text-slate-400 text-sm uppercase">Referral Events</h3>
+            <p className="text-3xl font-bold mt-2 text-purple-400">{summary.totalReferralEvents}</p>
           </div>
         </div>
 
-        {/* Commission Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700/50">
             <h3 className="text-slate-400 text-sm uppercase">Pending Commission</h3>

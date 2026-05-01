@@ -171,15 +171,6 @@ export default async function HostingProvidersPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Logo URL</label>
-                  <input
-                    name="logoUrl"
-                    type="url"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-600 bg-slate-900 text-white focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com/logo.png"
-                  />
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1.5">Affiliate URL</label>
                   <input
                     name="affiliateUrl"
@@ -188,6 +179,25 @@ export default async function HostingProvidersPage() {
                     placeholder="https://partner.vercel.com/..."
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Referral Code</label>
+                  <input
+                    name="referralCode"
+                    type="text"
+                    className="w-full px-4 py-2 rounded-lg border border-slate-600 bg-slate-900 text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., OUR_CODE for ?ref=OUR_CODE"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Used to generate referral links like: {process.env.NEXT_PUBLIC_APP_URL}/partners?provider=vercel&ref=OUR_CODE</p>
+                </div>
+              </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Affiliate URL</label>
+                  <input
+                    name="affiliateUrl"
+                    type="url"
+                    className="w-full px-4 py-2 rounded-lg border border-slate-600 bg-slate-900 text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://partner.vercel.com/..."
+                  />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
