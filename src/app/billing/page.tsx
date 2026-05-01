@@ -36,6 +36,9 @@ export default function BillingPage() {
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [points, setPoints] = useState<number>(0);
+  const [purchasing, setPurchasing] = useState<string | null>(null);
+
   useEffect(() => {
     checkAuth();
     fetchBillingInfo();
@@ -67,6 +70,7 @@ export default function BillingPage() {
 
       const data = await res.json();
       setBillingInfo(data);
+      setPoints(data.points || 0);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -75,10 +79,6 @@ export default function BillingPage() {
   };
 
   const handleUpgrade = async (plan: string) => {
-    if (!window.confirm(`Upgrade to ${plan} plan? (Demo mode - no payment)`)) {
-      return;
-    }
-
     setUpgrading(true);
     setError(null);
 
@@ -90,16 +90,22 @@ export default function BillingPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ action: 'upgrade', plan }),
+        body: JSON.stringify({ action: 'create-subscription', plan }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to upgrade');
+        throw new Error(data.error || 'Failed to create subscription');
       }
 
-      toast.success('Subscription upgraded successfully! (Demo mode)');
-      fetchBillingInfo();
+      const data = await res.json();
+      
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -120,7 +126,7 @@ export default function BillingPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ action: 'cancel' }),
+        body: JSON.stringify({ action: 'cancel-subscription' }),
       });
 
       if (!res.ok) {
@@ -132,6 +138,41 @@ export default function BillingPage() {
       fetchBillingInfo();
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  const handleBuyPoints = async (packageId: string) => {
+    setPurchasing(packageId);
+    setError(null);
+
+    try {
+      const token = getToken();
+      const res = await fetch('/api/billing', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'create-points-purchase', packageId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create purchase');
+      }
+
+      const data = await res.json();
+      
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPurchasing(null);
     }
   };
 
@@ -298,6 +339,78 @@ export default function BillingPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Current Points */}
+        <div className="mb-8 bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                Current Points Balance
+              </h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                Use points for premium features like full demand reports (200 pts)
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-4xl font-bold text-amber-600 dark:text-amber-400">
+                {points.toLocaleString()}
+              </p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">points</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Buy Points */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-6">
+            Buy Points
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { id: 'small', points: 500, price: '$5', description: 'Starter pack' },
+              { id: 'medium', points: 1200, price: '$10', description: 'Popular choice' },
+              { id: 'large', points: 3000, price: '$25', description: 'Best value' },
+            ].map(({ id, points: pts, price, description }) => (
+              <div
+                key={id}
+                className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border-2 border-zinc-200 dark:border-zinc-800 p-6 relative"
+              >
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 capitalize">
+                  {id} Pack
+                </h3>
+                <p className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mt-2">
+                  {pts.toLocaleString()}
+                  <span className="text-base font-normal text-zinc-600 dark:text-zinc-400"> pts</span>
+                </p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">
+                  {price}
+                </p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                  {description}
+                </p>
+                <button
+                  onClick={() => handleBuyPoints(id)}
+                  disabled={purchasing === id}
+                  className={`mt-4 w-full py-2 px-4 rounded-md font-medium transition-colors ${
+                    purchasing === id
+                      ? 'bg-zinc-300 text-zinc-600 cursor-not-allowed'
+                      : 'bg-amber-600 text-white hover:bg-amber-700'
+                  }`}
+                >
+                  {purchasing === id ? 'Processing...' : `Buy for ${price}`}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Demo Mode Notice */}
+        <div className="mb-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            <strong>Test Mode:</strong> This uses Stripe test mode. No real payments are processed.
+            In production, configure STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in .env.
+          </p>
         </div>
 
         {/* Available Plans */}
