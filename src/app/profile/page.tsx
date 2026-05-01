@@ -26,6 +26,12 @@ interface PointsData {
       points: number;
     }>;
   };
+  subscription?: {
+    plan: string;
+    status: string;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+  };
 }
 
 export default function ProfilePage() {
@@ -33,7 +39,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState<PointsData | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'rankings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'rankings' | 'subscription'>('overview');
 
   useEffect(() => {
     fetchProfile();
@@ -41,16 +47,25 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
+      // Fetch points/leaderboard data
       const res = await fetch('/api/leaderboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
       const data = await res.json();
-      
+
       if (res.ok) {
         setData(data);
       } else {
         setError(data.error || 'Failed to fetch profile');
+      }
+
+      // Fetch subscription data
+      const billingRes = await fetch('/api/billing');
+      const billingData = await billingRes.json();
+
+      if (billingRes.ok && data) {
+        data.subscription = billingData.subscription;
       }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch profile');
@@ -197,6 +212,16 @@ export default function ProfilePage() {
               >
                 Rankings
               </button>
+              <button
+                onClick={() => setActiveTab('subscription')}
+                className={`pb-2 px-1 border-b-2 transition-colors ${
+                  activeTab === 'subscription' 
+                    ? 'border-blue-500 text-blue-500' 
+                    : 'border-transparent text-zinc-400 hover:text-white'
+                }`}
+              >
+                Subscription
+              </button>
             </div>
 
             {/* Tab Content */}
@@ -278,6 +303,98 @@ export default function ProfilePage() {
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'subscription' && data.subscription && (
+              <div className="space-y-6">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-4">Current Plan</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-2xl font-bold capitalize">{data.subscription.plan}</p>
+                      <p className="text-zinc-400 text-sm mt-1">
+                        Status: <span className={`font-medium ${
+                          data.subscription.status === 'active' ? 'text-green-500' : 'text-yellow-500'
+                        }`}>{data.subscription.status}</span>
+                      </p>
+                    </div>
+                    <div className={`px-4 py-2 rounded-lg ${
+                      data.subscription.plan === 'free' ? 'bg-zinc-800' :
+                      data.subscription.plan === 'pro' ? 'bg-blue-900/30' :
+                      data.subscription.plan === 'team' ? 'bg-purple-900/30' :
+                      'bg-yellow-900/30'
+                    }`}>
+                      <span className="text-sm font-medium capitalize">{data.subscription.plan}</span>
+                    </div>
+                  </div>
+
+                  {data.subscription.currentPeriodEnd && (
+                    <div className="mb-4">
+                      <p className="text-zinc-400 text-sm mb-1">Current Period Ends</p>
+                      <p className="font-medium">
+                        {new Date(data.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  )}
+
+                  {data.subscription.cancelAtPeriodEnd && (
+                    <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4 mb-4">
+                      <p className="text-yellow-500 font-medium">Cancellation Scheduled</p>
+                      <p className="text-zinc-400 text-sm mt-1">
+                        Your subscription will be canceled at the end of the current billing period.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 mt-6">
+                    {data.subscription.plan === 'free' ? (
+                      <button
+                        onClick={() => window.location.href = '/billing'}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                      >
+                        Upgrade Plan
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => window.location.href = '/billing'}
+                        className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-medium transition-colors"
+                      >
+                        Manage Subscription
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Stats from Subscription */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+                    <p className="text-zinc-400 text-sm mb-2">Plan</p>
+                    <p className="text-xl font-bold capitalize">{data.subscription.plan}</p>
+                  </div>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+                    <p className="text-zinc-400 text-sm mb-2">Status</p>
+                    <p className={`text-xl font-bold ${
+                      data.subscription.status === 'active' ? 'text-green-500' : 'text-yellow-500'
+                    }`}>
+                      {data.subscription.status}
+                    </p>
+                  </div>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+                    <p className="text-zinc-400 text-sm mb-2">Auto-Renew</p>
+                    <p className="text-xl font-bold">
+                      {data.subscription.cancelAtPeriodEnd ? (
+                        <span className="text-red-500">No</span>
+                      ) : (
+                        <span className="text-green-500">Yes</span>
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

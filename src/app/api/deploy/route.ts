@@ -5,6 +5,9 @@ import { getRateLimiter, initRateLimiter } from '@/lib/rate-limiter';
 import { authenticate, getUserTokens } from '@/lib/auth';
 import { createLogger, generateRequestId } from '@/lib/logger';
 import { sendDeploymentNotification } from '@/lib/email';
+import { db } from '@/db';
+import { subscriptions } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 // Initialize rate limiter
 initRateLimiter(process.env.REDIS_URL);
@@ -27,6 +30,29 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info('User authenticated', { userId: user.id });
+
+    // Check subscription status - block if past_due or cancelled
+    const userSubscriptions = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, user.id))
+      .limit(1);
+
+    const subscription = userSubscriptions[0];
+    if (subscription && ['past_due', 'cancelled'].includes(subscription.status)) {
+      logger.warn('Deployment blocked - subscription issue', {
+        userId: user.id,
+        status: subscription.status,
+      });
+      return NextResponse.json(
+        {
+          error: 'Subscription issue',
+          message: `Your subscription is ${subscription.status}. Please update your payment method or reactivate your subscription.`,
+          subscriptionStatus: subscription.status,
+        },
+        { status: 403 }
+      );
+    }
 
     // Rate limiting check
     const rateLimiter = getRateLimiter();
