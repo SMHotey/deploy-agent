@@ -299,74 +299,68 @@ npm run dev
 
 ### Способ 1: Через SQL (рекомендуется)
 
-1. **Сгенерируйте hash пароля**:
+1. **Выполните SQL файл**:
 ```bash
-# Используйте Node.js:
-node -e "const bcrypt = require('bcrypt'); bcrypt.hash('admin123', 10).then(console.log);"
+# Windows (PowerShell) - найдите psql.exe:
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -d postgres -f "C:\Projects\DA\deploy-agent\scripts\create-admin.sql"
 ```
 
-2. **Выполните SQL запрос**:
-```bash
-psql -U postgres -d deploy_agent -c "
+Или вручную через psql:
+```sql
+-- Подключитесь к базе:
+psql -U postgres -d postgres
+
+-- Выполните SQL (замените hash на актуальный):
 INSERT INTO users (email, password_hash, name, is_admin, created_at, updated_at)
 VALUES (
   'admin@deploy-agent.local',
-  'PASTE_HASH_HERE',  -- вставьте hash из шага 1
+  '$2b$10$TMp8qSaoxzOinRFmVTpmeeKKvdKioRNFmg3G1vRa5PqcZxnHIpdOu',
   'Admin User',
   true,
   NOW(),
   NOW()
 ) ON CONFLICT (email) DO UPDATE SET is_admin = true;
-"
 ```
 
-### Способ 2: Через скрипт (автоматически)
+### Способ 2: Через Node.js скрипт
 
-Создайте файл `scripts/create-admin.js`:
-
-```javascript
-const bcrypt = require('bcrypt');
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-async function createAdmin() {
-  const email = 'admin@deploy-agent.local';
-  const password = 'admin123';
-  const name = 'Admin User';
-  
-  const hash = await bcrypt.hash(password, 10);
-  
-  await pool.query(`
-    INSERT INTO users (email, password_hash, name, is_admin, created_at, updated_at)
-    VALUES ($1, $2, $3, true, NOW(), NOW())
-    ON CONFLICT (email) DO UPDATE SET is_admin = true
-  `, [email, hash, name]);
-  
-  console.log('✓ Admin user created:');
-  console.log('  Email: admin@deploy-agent.local');
-  console.log('  Password: admin123');
-  console.log('  isAdmin: true');
-  
-  await pool.end();
-}
-
-createAdmin().catch(console.error);
-```
-
-Запуск:
+1. **Установите зависимости** (если еще не):
 ```bash
 npm install bcrypt pg
+```
+
+2. **Запустите скрипт**:
+```bash
 node scripts/create-admin.js
 ```
 
-### Способ 3: Используя Prisma Studio (если установлен)
+Скрипт автоматически:
+- Сгенерирует bcrypt hash для пароля `admin123`
+- Создаст или обновит пользователя `admin@deploy-agent.local`
+- Установит права администратора (`is_admin = true`)
 
-```bash
-npx prisma studio  # если используется Prisma
+### Способ 3: Через интерфейс приложения
+
+1. Запустите проект (`npm run dev`)
+2. Откройте http://localhost:3000/landing
+3. Нажмите "Sign Up" и создайте обычного пользователя
+4. Затем выполните SQL для назначения прав админа:
+```sql
+UPDATE users SET is_admin = true WHERE email = 'your-email@example.com';
 ```
+
+### Данные для входа:
+- **Email**: `admin@deploy-agent.local`
+- **Password**: `admin123`
+- **isAdmin**: `true`
+
+### Проверка:
+После создания админа, выполните:
+```bash
+psql -U postgres -d postgres -c "SELECT id, email, name, is_admin FROM users WHERE email = 'admin@deploy-agent.local';"
+```
+
+Должно вернуть строку с `is_admin = t`.
 
 ---
 
