@@ -619,3 +619,30 @@ export type PointsTransaction = typeof pointsTransactions.$inferSelect;
 export type NewPointsTransaction = typeof pointsTransactions.$inferInsert;
 export type LeaderboardEntry = typeof leaderboard.$inferSelect;
 export type NewLeaderboardEntry = typeof leaderboard.$inferInsert;
+
+// Landing pages table (AI-generated marketing pages)
+export const landingPages = pgTable('landing_pages', {
+  id: serial('id').primaryKey(),
+  slug: varchar('slug', { length: 100 }).notNull().unique(),
+  title: varchar('title', { length: 255 }).notNull(),
+  topic: varchar('topic', { length: 255 }).notNull(),
+  targetAudience: varchar('target_audience', { length: 255 }),
+  tone: varchar('tone', { length: 100 }),
+  config: jsonb('config').$type<{
+    hero: { title: string; subtitle: string; ctaText: string; gradient: string };
+    features: Array<{ icon: string; title: string; description: string }>;
+    cta: { text: string; link: string };
+  }>().notNull(),
+  isPublished: boolean('is_published').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  publishedAt: timestamp('published_at'),
+});
+
+export const landingPagesRelations = relations(landingPages, ({ one }) => ({
+  // No direct relations needed
+}));
+
+// Type exports
+export type LandingPage = typeof landingPages.$inferSelect;
+export type NewLandingPage = typeof landingPages.$inferInsert;
