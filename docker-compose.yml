@@ -39,6 +39,8 @@ services:
       - ENCRYPTION_KEY=12345678901234567890123456789012
       - JWT_SECRET=12345678901234567890123456789012
       - NODE_ENV=production
+      - NEXT_PUBLIC_DISABLE_AUTH=true
+      - DISABLE_AUTH=true
     depends_on:
       postgres:
         condition: service_healthy

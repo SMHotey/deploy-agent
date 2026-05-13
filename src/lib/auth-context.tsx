@@ -56,12 +56,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = getToken();
+    const disableAuth = process.env.NEXT_PUBLIC_DISABLE_AUTH === 'true' || process.env.DISABLE_AUTH === 'true';
+    
+    if (disableAuth) {
+      // When auth is disabled, create a mock user
+      setUser({ id: 1, email: 'test@example.com', name: 'Test User' });
+      setIsLoading(false);
+      return;
+    }
+    
     if (token) {
       fetchUser(token).finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
-  }, [getToken, fetchUser]);
+  }, [fetchUser]);
 
   const login = useCallback((token: string) => {
     localStorage.setItem('accessToken', token);
@@ -75,6 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const requireAuth = useCallback((): boolean => {
+    const disableAuth = process.env.NEXT_PUBLIC_DISABLE_AUTH === 'true' || process.env.DISABLE_AUTH === 'true';
+    if (disableAuth) {
+      return true; // Always allow access when auth is disabled
+    }
+    
     const token = getToken();
     if (!token) {
       router.push('/');
